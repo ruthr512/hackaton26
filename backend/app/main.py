@@ -64,6 +64,6 @@ app.include_router(patients.router)
 app.include_router(rules.router)
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])  # uptime monitors probe with HEAD
 def health():
     return {"ok": True}
