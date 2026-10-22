@@ -200,13 +200,15 @@ export function ExportPage() {
                 )}
               </p>
             </div>
-            <div className="flex-shrink-0 flex flex-col items-center justify-center bg-surface-container-low px-5 py-4 rounded-xl">
-              <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">{t("export.securityProtocol")}</span>
-              <span className="inline-flex items-center gap-1 font-data-mono-sm text-data-mono-sm font-semibold text-primary">
-                <span className="material-symbols-outlined text-[16px]">lock</span>
-                AES-256 Validated
-              </span>
-            </div>
+            {isXlsx && options.password_protect && (
+              <div className="flex-shrink-0 flex flex-col items-center justify-center bg-surface-container-low px-5 py-4 rounded-xl">
+                <span className="font-label-sm text-label-sm text-on-surface-variant mb-1">{t("export.securityProtocol")}</span>
+                <span className="inline-flex items-center gap-1 font-data-mono-sm text-data-mono-sm font-semibold text-primary">
+                  <span className="material-symbols-outlined text-[16px]">lock</span>
+                  AES-256 Validated
+                </span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -316,25 +318,25 @@ export function ExportPage() {
               <table className="w-full text-start border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-surface-container font-headline-sm text-label-md text-on-surface select-none">
-                    <th className="py-3 px-4 font-semibold w-16 text-center">#</th>
+                    <th className="py-3 px-4 font-semibold w-16 text-start align-middle whitespace-nowrap">#</th>
                     {summary.columns.map((c) => (
-                      <th key={c.field} className="py-3 px-4 font-semibold">
+                      <th key={c.field} className="py-3 px-4 font-semibold text-start align-middle whitespace-nowrap">
                         {c.header}
                       </th>
                     ))}
-                    <th className="py-3 px-4 font-semibold">{t("export.statusCol")}</th>
+                    <th className="py-3 px-4 font-semibold text-start align-middle whitespace-nowrap">{t("export.statusCol")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-container font-body-md text-body-md text-on-surface">
                   {summary.preview.map((row, i) => (
                     <tr key={row._form_id} className="hover:bg-primary-fixed/10 transition-colors">
-                      <td className="py-3.5 px-4 text-center font-data-mono-sm text-data-mono-sm text-on-surface-variant bg-surface-container-low/40">
+                      <td className="py-3.5 px-4 text-start align-middle font-data-mono-sm text-data-mono-sm text-on-surface-variant bg-surface-container-low/40">
                         {i + 1}
                       </td>
                       {summary.columns.map((c) => (
                         <Cell key={c.field} field={c.field} row={row} />
                       ))}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 text-start align-middle">
                         <StatusBadge row={row} />
                       </td>
                     </tr>
@@ -352,11 +354,11 @@ export function ExportPage() {
               <table className="w-full text-start border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-surface-container font-headline-sm text-label-md text-on-surface select-none">
-                    <th className="py-3 px-4 font-semibold w-16 text-center">#</th>
-                    <th className="py-3 px-4 font-semibold">{t("export.fileCol")}</th>
-                    <th className="py-3 px-4 font-semibold">{t("export.pageCol")}</th>
+                    <th className="py-3 px-4 font-semibold w-16 text-start align-middle whitespace-nowrap">#</th>
+                    <th className="py-3 px-4 font-semibold text-start align-middle whitespace-nowrap">{t("export.fileCol")}</th>
+                    <th className="py-3 px-4 font-semibold text-start align-middle whitespace-nowrap">{t("export.pageCol")}</th>
                     {summary.columns.map((c) => (
-                      <th key={c.field} className="py-3 px-4 font-semibold">
+                      <th key={c.field} className="py-3 px-4 font-semibold text-start align-middle whitespace-nowrap">
                         {c.header}
                       </th>
                     ))}
@@ -365,15 +367,15 @@ export function ExportPage() {
                 <tbody className="divide-y divide-surface-container font-body-md text-body-md text-on-surface">
                   {summary.confidence_preview.map((r, i) => (
                     <tr key={i} className="hover:bg-primary-fixed/10 transition-colors">
-                      <td className="py-3.5 px-4 text-center font-data-mono-sm text-data-mono-sm text-on-surface-variant bg-surface-container-low/40">
+                      <td className="py-3.5 px-4 text-start align-middle font-data-mono-sm text-data-mono-sm text-on-surface-variant bg-surface-container-low/40">
                         {i + 1}
                       </td>
-                      <td className="py-3.5 px-4 font-bold text-secondary" dir="auto">{r.filename}</td>
-                      <td className="py-3.5 px-4 font-data-mono-sm text-data-mono-sm">{r.page}</td>
+                      <td className="py-3.5 px-4 text-start align-middle font-bold text-secondary"><bdi dir="auto">{r.filename}</bdi></td>
+                      <td className="py-3.5 px-4 text-start align-middle font-data-mono-sm text-data-mono-sm">{r.page}</td>
                       {summary.columns.map((c) => {
                         const f = r.fields[c.field];
                         return (
-                          <td key={c.field} className="py-3.5 px-4 font-data-mono-sm text-data-mono-sm">
+                          <td key={c.field} className="py-3.5 px-4 text-start align-middle font-data-mono-sm text-data-mono-sm">
                             {!f || f.level === "empty" ? (
                               <span className="text-outline-variant">—</span>
                             ) : (
@@ -610,7 +612,7 @@ function Cell({ field, row }: { field: FieldName; row: ExportRow }) {
   return (
     <td
       className={cn(
-        "py-3.5 px-4",
+        "py-3.5 px-4 text-start align-middle",
         NAME_FIELDS.has(field) ? "font-bold text-secondary" : MONO_FIELDS.has(field) && "font-data-mono-sm text-data-mono-sm",
       )}
     >

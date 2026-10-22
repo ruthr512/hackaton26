@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from app import audit, corrections, events, patients
+from app import audit, corrections, events, identity, patients
 from app.api.batches import start_background
 from app.api.serialize import field_dict, load_value
 from app.auth import check_batch_view, check_form_editor, get_current_user
@@ -15,7 +15,8 @@ from app.config import get_settings
 from app.db import get_session
 from app.fields import LEVEL_EMPTY, LEVEL_OK
 from app.logging_utils import get_logger, log_event
-from app.models import AuditLog, Batch, Field, Form, User
+from app.models import AuditLog, Batch, Correction, Field, Form, User
+from app.senders import learn_sender
 from app.workflow import APPROVED
 from pipeline.normalizers import normalize_field
 from pipeline.runner import retry_form
@@ -54,16 +55,40 @@ def _last_editor(s: Session, fld: Field) -> Optional[str]:
     return (who.display_name or who.username) if who else None
 
 
+# the page image is replaced when classify turns / straightens it: never serve a stale copy
+_NO_CACHE = {"Cache-Control": "no-cache, must-revalidate"}
+
+
 @router.get("/forms/{form_id}/image")
 def form_image(form_id: int, s: Session = Depends(get_session), user: User = Depends(get_current_user)):
     form = s.get(Form, form_id)
     if form is not None:
         check_batch_view(s, user, s.get(Batch, form.batch_id))
     if form is not None and form.image_data:
-        return Response(form.image_data, media_type="image/png")
+        return Response(form.image_data, media_type="image/png", headers=_NO_CACHE)
     if form is None or not form.image_path or not Path(form.image_path).exists():
         raise HTTPException(404, "image not found")
-    return FileResponse(form.image_path, media_type="image/png")
+    return FileResponse(form.image_path, media_type="image/png", headers=_NO_CACHE)
+
+
+@router.delete("/forms/{form_id}")
+def delete_form(form_id: int, s: Session = Depends(get_session), user: User = Depends(get_current_user)):
+    """Throw a commitment away (e.g. one whose name clashes with the patient file and was scanned wrongly)."""
+    form = _editable_form(s, form_id, user)
+    if s.exec(select(Form.id).where(Form.parent_form_id == form_id)).first() is not None:
+        raise HTTPException(409, {"code": "has_merged_pages", "detail": "split the merged pages first"})
+    batch_id = form.batch_id
+    for row in s.exec(select(Correction).where(Correction.form_id == form_id)).all():
+        s.delete(row)  # never approved, so it never became a lesson
+    for fld in s.exec(select(Field).where(Field.form_id == form_id)).all():
+        s.delete(fld)
+    audit.record(s, user, "form_deleted", "form", form_id, form_id=form_id,
+                 before={"workflow": form.workflow, "patient_id": form.patient_id})
+    s.delete(form)
+    s.commit()
+    events.bump(batch_id)
+    log_event(log, "form_deleted", form_id=form_id, user_id=user.id)
+    return {"ok": True}
 
 
 @router.post("/forms/{form_id}/retry")
@@ -161,6 +186,8 @@ def _audit(s: Session, user: User, action: str, fld: Field, before: dict) -> Non
 def _changed(s: Session, fld: Field) -> None:
     """Tell live review screens of this batch (SSE) that something changed."""
     form = s.get(Form, fld.form_id)
+    if fld.name in ("full_name", "id_number"):  # a confirmed name / ID reaches the other forms of the same ID
+        identity.propagate(s, form)
     events.bump(form.batch_id if form else None)
 
 
@@ -182,7 +209,11 @@ def update_field(field_id: int, body: FieldUpdate, s: Session = Depends(get_sess
     fld.version = (fld.version or 0) + 1
     s.add(fld)
     corrections.record(s, user, fld, before)
+    if fld.name == "sender":  # typed by a person: the list now knows it
+        learn_sender(s, user, value, fld.form_id)
     _audit(s, user, "field_corrected", fld, before)
+    if fld.name == "full_name":  # typed over a flagged name change: the patient file takes that name
+        identity.confirm_name(s, user, fld, get_settings().pipeline)
     s.commit()
     s.refresh(fld)
     _changed(s, fld)
@@ -197,7 +228,11 @@ def approve_field(field_id: int, s: Session = Depends(get_session), user: User =
     fld.level = LEVEL_EMPTY if fld.value is None else LEVEL_OK
     fld.version = (fld.version or 0) + 1
     s.add(fld)
+    if fld.name == "sender":  # approved: the list now knows it, so it is not flagged next time
+        learn_sender(s, user, load_value(fld.value), fld.form_id)
     _audit(s, user, "field_approved", fld, before)
+    if fld.name == "full_name":  # approved as a name change: the patient file takes the new name
+        identity.confirm_name(s, user, fld, get_settings().pipeline)
     s.commit()
     s.refresh(fld)
     _changed(s, fld)

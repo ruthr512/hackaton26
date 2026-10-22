@@ -4,9 +4,10 @@ import { LANGS, useI18n, type Lang, type MessageKey } from "@/i18n";
 import { homeFor, useAuth } from "@/auth/AuthProvider";
 import type { Role } from "@/lib/api";
 import { hasRole, rolesOf } from "@/lib/labels";
+import { GuideProvider } from "@/guide/GuideProvider";
+import { GuideMenu } from "@/guide/GuideMenu";
 
-const LOGO =
-  "https://lh3.googleusercontent.com/aida/AEtjO1WiJEzpWA1TP0GDTUFKQHPG0O4hev9JTzJ_G9HGGFqnwqOZH7Yep-ipLnXAFNp9V--jcS-dZ4AdUo7Md-NjMjxoL5yV57306FjzYy6er5RgduB2B-tH6jRYLcduCqiEOCjGeo4NDutnIgCDC9ozJcVKSb0jvhDugNUsLvO8q9C396nsHX17OmDtfzDL328Q2IY2eKNnpYRSTlIGGxTshGMZO0g2YoO5_QItJBFA5GwyqbF2v3GUgWfKFKg";
+const LOGO = "/logo.svg";
 
 /** The personal-area links of each role, shown outside the batch screens. */
 const ROLE_LINKS: Record<Role, { to: string; label: MessageKey }[]> = {
@@ -31,6 +32,9 @@ const ROLE_LINKS: Record<Role, { to: string; label: MessageKey }[]> = {
     { to: "/patients", label: "nav.patients" },
   ],
 };
+
+/** Anchors for the user guide on the four steps of the batch stepper. */
+const STEP_ANCHORS = ["step-upload", "step-processing", "step-review", "step-export"];
 
 /** The links of every role the user holds, each once (in role order). */
 function linksFor(roles: Role[]) {
@@ -181,7 +185,7 @@ export function Layout() {
   const roleLinks = linksFor(roles.length ? roles : ["intake"]);
 
   return (
-    <>
+    <GuideProvider>
       <header className="fixed top-0 w-full z-50 shadow-[0_10px_25px_-5px_rgba(43,41,109,0.06)] bg-gradient-to-br from-[#2BB99B] to-[#2B296D]">
         <div className="h-20 w-full px-margin flex items-center justify-between">
           <div className="flex items-center gap-space-md">
@@ -189,7 +193,6 @@ export function Layout() {
             <div className="flex flex-col">
               <div className="flex items-center gap-space-xs">
                 <span className="text-on-primary font-headline-md text-headline-md tracking-tight font-bold">MedScan AI</span>
-                <span className="bg-white/20 text-on-primary px-2 py-0.5 rounded-full text-label-sm font-label-sm">v2.4</span>
               </div>
               <span className="text-primary-fixed font-body-sm text-body-sm opacity-90">{t("header.tagline")}</span>
             </div>
@@ -211,6 +214,7 @@ export function Layout() {
               <Link
                 key={i}
                 to={s.to || "#"}
+                data-guide={STEP_ANCHORS[i]}
                 onClick={s.to ? undefined : (e) => e.preventDefault()}
                 aria-current={i === step ? "page" : undefined}
                 className={i === step ? ACTIVE : INACTIVE}
@@ -220,19 +224,8 @@ export function Layout() {
             ))}
           </nav>
           <div className="flex items-center gap-space-md">
-            <div className="hidden md:flex items-center gap-space-xs bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-on-primary">
-              <span className="material-symbols-outlined text-[16px] text-primary-fixed">verified_user</span>
-              <span className="font-label-sm text-label-sm tracking-wide">{t("header.secure")}</span>
-            </div>
             <LanguageSwitcher />
-            <button
-              className="flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-on-primary transition-colors"
-              type="button"
-              aria-label={t("header.help")}
-              title={t("header.help")}
-            >
-              <span className="material-symbols-outlined text-[20px]">help_outline</span>
-            </button>
+            <GuideMenu />
             {user && (
               <div className="flex items-center gap-space-sm pe-2">
                 <div className="text-end hidden sm:flex flex-col">
@@ -283,11 +276,11 @@ export function Layout() {
               {t("footer.support")}
             </a>
             <span className="font-data-mono-sm text-data-mono-sm" dir="ltr">
-              © 2025 MedScan AI Ltd. All rights reserved.
+              © 2026 MedScan AI Ltd. All rights reserved.
             </span>
           </div>
         </div>
       </footer>
-    </>
+    </GuideProvider>
   );
 }

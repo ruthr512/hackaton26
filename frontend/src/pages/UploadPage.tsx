@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError, NetworkError, type UploadHandle } from "@/lib/api";
 import { errorText } from "@/lib/labels";
@@ -8,7 +8,6 @@ const ACCEPT = ".pdf,.png,.jpg,.jpeg,.tiff,.tif,.heic,.heif";
 const ACCEPT_RE = /\.(pdf|png|jpe?g|tiff?|heic|heif)$/i;
 const MAX_FILE_MB = 50;
 const MAX_FILES = 50;
-const STORAGE_LIMIT_MB = 500;
 const PARALLEL_UPLOADS = 2;
 const MAX_ATTEMPTS = 3;
 const SLOW_AFTER_MS = 8_000; // no progress this long: tell the user the connection is slow
@@ -256,7 +255,6 @@ export function UploadPage() {
   const uploadFraction = queue.length
     ? queue.reduce((n, q) => n + (q.status === "ready" ? 0 : q.progress), 0) / queue.length
     : 0;
-  const totalBytes = useMemo(() => queue.reduce((n, q) => n + q.file.size, 0), [queue]);
   const knownPages = queue.reduce((n, q) => n + (q.pages ?? 0), 0);
   const allPagesKnown = queue.every((q) => q.pages !== null);
   const pagesCount = t("unit.pages", { count: Math.max(knownPages, queue.length ? 1 : 0) });
@@ -285,15 +283,6 @@ export function UploadPage() {
           <span className="font-label-sm text-label-sm text-secondary font-bold">{t("upload.stepLabel")}</span>
         </div>
         <div className="flex items-center gap-space-md">
-          <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-xl">
-            <Icon name="cloud_done" className="text-[18px] text-primary" />
-            <span className="font-body-sm text-body-sm text-on-surface">
-              {t("upload.storage")}{" "}
-              <strong className="font-data-mono-sm text-data-mono-sm text-secondary" dir="ltr">
-                {mb(totalBytes)} MB / {STORAGE_LIMIT_MB} MB
-              </strong>
-            </span>
-          </div>
           <div className="hidden sm:flex items-center gap-1.5 text-on-surface-variant font-body-sm text-body-sm">
             <Icon name="security" className="text-[18px] text-primary" />
             <span>{t("upload.encrypted")}</span>

@@ -1,0 +1,16 @@
+# Render's free tier suspends a web service after 15 minutes without traffic; the next request
+# then gets a 502 while it wakes up. A hit every 10 minutes keeps the backend awake.
+name: keepalive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping backend health
+        run: curl --fail --silent --show-error --max-time 90 --retry 3 --retry-delay 15 --retry-all-errors https://commitment-forms-api-s7c1.onrender.com/api/health

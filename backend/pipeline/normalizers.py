@@ -5,7 +5,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.fields import MULTI_FIELDS
-from validators.senders import match_sender
+from validators.senders import resolve_sender, strip_department
 
 _DATE_DMY = re.compile(r"^\s*(\d{1,2})\s*[/.\-\\]\s*(\d{1,2})\s*[/.\-\\]\s*(\d{2}|\d{4})\s*$")
 _DATE_ISO = re.compile(r"^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$")
@@ -80,11 +80,15 @@ def normalize_field(name: str, value: Any, senders_cfg: Dict[str, Any]) -> Tuple
         v = normalize_date(v)
     elif name == "sender":
         v = clean_text(v)
-        canonical, _score, exact = match_sender(v, senders_cfg)
+        canonical, _score, how = resolve_sender(v, senders_cfg)
         if canonical:
-            if not exact:
+            if how == "fuzzy":
                 reasons.append({"kind": "soft", "code": "sender_fuzzy_match"})
+            elif how == "words" and v != canonical:
+                reasons.append({"kind": "info", "code": "sender_resolved"})
             v = canonical
+        else:
+            v = clean_text(strip_department(v))  # an unknown hospital's department: the hospital is the sender
     else:
         v = clean_text(v)
     return (v or None), reasons
@@ -99,6 +103,22 @@ def values_equal(a: Any, b: Any) -> bool:
     if isinstance(a, list) or isinstance(b, list):
         return sorted(_fold(x) for x in a or []) == sorted(_fold(x) for x in b or [])
     return _fold(a or None) == _fold(b or None)
+
+
+_NUMBER_NOISE = re.compile(r"[\s\-‐-―־]+")  # spaces, hyphens, dashes, maqaf
+
+
+def _bare_number(v: Any) -> Any:
+    if isinstance(v, list):
+        return [_bare_number(x) for x in v]
+    return (_NUMBER_NOISE.sub("", v) or None) if isinstance(v, str) else v
+
+
+def same_reading(name: str, a: Any, b: Any) -> bool:
+    """Two reads of one field agree. IDs and numbers also ignore spaces and hyphens; other fields: values_equal."""
+    if name == "id_number" or name in MULTI_FIELDS:
+        return values_equal(_bare_number(a), _bare_number(b))
+    return values_equal(a, b)
 
 
 def to_display_date(iso: Optional[str], fmt: str = "DD/MM/YYYY") -> Optional[str]:

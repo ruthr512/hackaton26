@@ -2,6 +2,7 @@ import type { Messages } from "./he";
 import { rolesRu } from "./roles";
 import { edgeRu } from "./edge";
 import { p2dRu } from "./phase2d";
+import { guideRu } from "./guide";
 
 export const ru: Messages = {
   // Common
@@ -30,12 +31,11 @@ export const ru: Messages = {
   "nav.review": "3. Проверка",
   "nav.export": "4. Экспорт в Excel",
   "header.tagline": "Умное преобразование медицинских форм в файлы Excel",
-  "header.secure": "Защищённый сервер HIPAA/GDPR",
   "header.help": "Помощь",
   "header.userName": "Д-р Михаль Леви",
   "header.userRole": "Медицинский директор",
   "header.profile": "Профиль",
-  "footer.encrypted": "Медицинские данные зашифрованы end-to-end в соответствии с израильскими нормами цифрового здравоохранения",
+  "footer.encrypted": "Медицинские данные зашифрованы при передаче и хранении в соответствии с израильскими нормами цифрового здравоохранения",
   "footer.privacy": "Политика конфиденциальности и защиты данных",
   "footer.support": "Клиническая и техническая поддержка",
 
@@ -60,6 +60,17 @@ export const ru: Messages = {
   "reason.recovered_on_zoom": "Прочитано при увеличении",
   "reason.learned_correction": "Значение из прежних исправлений",
   "reason.often_corrected": "Часто ошибались раньше: проверьте",
+  "reason.name_from_patient_file": "Имя взято из карточки пациента с этим ТЗ",
+  "reason.id_name_conflict": "Это ТЗ уже записано на другое имя: одно из них неверно",
+  "err.name_change_pending": "Имя в форме отличается от имени, записанного на это ТЗ: подтвердите смену имени, удалите обязательство или отсканируйте исправленное. Пока этого нет, форму нельзя передать дальше",
+  "reason.name_change": "Это ТЗ записано на имя «{name}». Если это смена имени, подтверждение значения обновит имя пациента. Пока это не сделано, форму нельзя экспортировать: отсканируйте исправленное обязательство или удалите это",
+  "review.approveNameChange": "Подтвердить смену имени",
+  "review.deleteForm": "Удалить это обязательство",
+  "review.deleteFormConfirm": "Удалить это обязательство? Действие необратимо.",
+  "patients.nameChanged": "Имя пациента изменено с {old} на {new}. В деле могут быть документы с несовпадающим именем.",
+  "patients.nameChangedBadge": "Имя изменено",
+  "reason.not_identified": "Не распознано",
+  "reason.sender_resolved": "Отправитель взят из списка (отделение → учреждение)",
 
   // Upload
   "upload.errUnsupported": {
@@ -79,7 +90,7 @@ export const ru: Messages = {
   "upload.processLabel": "Клинический процесс преобразования",
   "upload.stepLabel": "Шаг 1 из 4: приём документов",
   "upload.storage": "Защищённое временное хранилище:",
-  "upload.encrypted": "Шифрование SHA-256",
+  "upload.encrypted": "Шифрование AES-256",
   "upload.title": "Автоматическое сканирование и преобразование медицинских документов и форм",
   "upload.intro":
     "Перетащите сюда отсканированные направления, выписки, анализы крови или формы 17. Система распознает поля, прочитает рукописный текст и превратит всё в точные таблицы для Excel.",
@@ -376,7 +387,7 @@ export const ru: Messages = {
   "export.newScan": "Новое сканирование",
   "export.sendDirect": "Отправить в Clipro / Chameleon",
   "export.sendNotice": "Прямая отправка в Clipro / Chameleon ещё не настроена. Скачайте файл и импортируйте его в систему.",
-  "export.auditNote": "Проверено движком валидации медицинской схемы v2.4 по требованиям больничных касс (Клалит, Маккаби, Меухедет, Леумит)",
+  "export.auditNote": "Проверено движком валидации медицинской схемы по требованиям больничных касс (Клалит, Маккаби, Меухедет, Леумит)",
   "export.checksumOnDownload": "вычисляется при скачивании",
   "export.confirmTitle": "Есть непроверенные поля",
   "export.confirmDesc": {
@@ -397,4 +408,7 @@ export const ru: Messages = {
 
   // Live review, users, patient file, validation rules (roadmap 2ד)
   ...p2dRu,
+
+  // The live user guide behind the "?" button
+  ...guideRu,
 };

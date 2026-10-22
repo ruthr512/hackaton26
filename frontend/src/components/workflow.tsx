@@ -1,7 +1,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useEffect, useState } from "react";
 import { api, type BacklogState, type FormData, type Role } from "@/lib/api";
-import { workflowLabel } from "@/lib/labels";
+import { errorText, workflowLabel } from "@/lib/labels";
 import { useI18n } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,7 +129,7 @@ export function FormWorkflowBar({
       await fn();
       onDone();
     } catch (e) {
-      onError((e as Error).message);
+      onError(errorText(t, (e as { code?: string | null }).code, (e as Error).message));
     } finally {
       setBusy(false);
     }

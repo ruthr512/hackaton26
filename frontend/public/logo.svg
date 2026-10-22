@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="MedScan AI">
+  <!-- Document with folded corner -->
+  <path d="M14 5h20l14 14v36a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4z" fill="#ffffff" fill-opacity="0.14" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M34 5v14h14" fill="none" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Text lines -->
+  <path d="M17 16h11M17 23h11" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <!-- Test tube -->
+  <path d="M23 30v17a6 6 0 0 0 12 0V30" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21 30h16" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <path d="M24.5 41h9v6a4.5 4.5 0 0 1-9 0z" fill="#ffffff"/>
+  <!-- Scan beam -->
+  <rect x="3" y="33" width="58" height="6" rx="3" fill="#B9F6E4" fill-opacity="0.35"/>
+  <path d="M3 36h58" stroke="#B9F6E4" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

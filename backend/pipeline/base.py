@@ -21,9 +21,10 @@ class FieldResult(BaseModel):
     reasons: List[Dict[str, str]] = PField(default_factory=list)
     learned: bool = False  # the value came from a lesson (earlier human corrections), not from the reading
 
-    def add_reason(self, kind: str, code: str) -> None:
+    def add_reason(self, kind: str, code: str, detail: Optional[str] = None) -> None:
+        """`detail` is a value the note quotes (e.g. the name an ID is filed under)."""
         if not any(r["code"] == code for r in self.reasons):
-            self.reasons.append({"kind": kind, "code": code})
+            self.reasons.append({"kind": kind, "code": code, **({"detail": detail} if detail else {})})
 
 
 class FormDoc(BaseModel):

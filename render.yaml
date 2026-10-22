@@ -1,14 +1,34 @@
 services:
   - type: web
     name: commitment-forms-api
-    runtime: docker
-    dockerfilePath: ./Dockerfile.render
+    runtime: python
     plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: CLAUDE_MODEL
         value: claude-opus-5-5
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: DATA_ENCRYPTION_KEY
+        generateValue: true
+
+  - type: web
+    name: commitment-forms-web
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npx vite preview --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: API_TARGET
+        sync: false

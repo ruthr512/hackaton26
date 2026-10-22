@@ -37,7 +37,7 @@ export function PatientsPage() {
           <h1 className="font-headline-lg text-headline-lg font-bold text-on-surface">{t("patients.title")}</h1>
           <p className="font-body-md text-body-md text-on-surface-variant">{t("patients.subtitle")}</p>
         </div>
-        <div className="relative">
+        <div className="relative" data-guide="patients-search">
           <Icon name="search" className="absolute top-1/2 -translate-y-1/2 start-4 text-outline text-[22px]" />
           <Input
             autoFocus
@@ -66,6 +66,7 @@ export function PatientsPage() {
                     <span className="font-data-mono-sm text-data-mono-sm" dir="ltr">
                       {p.patient_id}
                     </span>
+                    {p.name_changed && <span className="text-tertiary font-bold">{t("patients.nameChangedBadge")}</span>}
                     {p.names.length > 1 && <span dir="auto">{p.names.slice(1).join(" · ")}</span>}
                   </div>
                 </div>

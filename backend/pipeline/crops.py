@@ -24,6 +24,13 @@ def _encode(im: Image.Image) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def pad_box(box: Sequence[float], ratio: float) -> List[float]:
+    """The normalized box widened by `ratio` of its own width / height on every side, kept inside the page."""
+    x0, y0, x1, y1 = box
+    dx, dy = (x1 - x0) * ratio, (y1 - y0) * ratio
+    return [max(0.0, x0 - dx), max(0.0, y0 - dy), min(1.0, x1 + dx), min(1.0, y1 + dy)]
+
+
 def crop_region(image_path: str, box: Optional[Sequence[float]], margin: float = 0.03,
                 min_width: int = 1000) -> Optional[Tuple[str, Tuple[float, float, float, float]]]:
     """(JPEG base64, normalized page rect [x0, y0, x1, y1] actually cut) of `box` widened by `margin`, or None."""

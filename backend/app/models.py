@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, LargeBinary
+from sqlalchemy import Column
 from sqlmodel import Field as SQLField, SQLModel
+
+from app.crypto import EncryptedBlob
 
 
 class Batch(SQLModel, table=True):
@@ -30,7 +32,7 @@ class SourceFile(SQLModel, table=True):
     sha256: Optional[str] = SQLField(default=None, index=True)
     duplicate_of_batch: Optional[int] = None  # the same file was already uploaded in this batch
     pages_total: Optional[int] = None
-    content: Optional[bytes] = SQLField(default=None, sa_column=Column(LargeBinary))  # the uploaded file itself
+    content: Optional[bytes] = SQLField(default=None, sa_column=Column(EncryptedBlob))  # the uploaded file itself (AES-256-GCM at rest)
 
 
 class Form(SQLModel, table=True):
@@ -39,7 +41,7 @@ class Form(SQLModel, table=True):
     source_file_id: int = SQLField(foreign_key="sourcefile.id", index=True)
     page_index: int = 0
     image_path: str = ""  # working copy on disk while the batch is processed
-    image_data: Optional[bytes] = SQLField(default=None, sa_column=Column(LargeBinary))  # page image (PNG)
+    image_data: Optional[bytes] = SQLField(default=None, sa_column=Column(EncryptedBlob))  # page image (PNG), AES-256-GCM at rest
     status: str = "pending"  # pending | processing | done | failed  (pipeline state)
     error: Optional[str] = None
     error_code: Optional[str] = None
@@ -58,6 +60,9 @@ class Form(SQLModel, table=True):
     created_at: datetime = SQLField(default_factory=datetime.utcnow)
     # shown for review already; zoomed checks still running in the background (fields nobody touched may update)
     refining: bool = False
+    # bumped whenever image_data is replaced (page turned / straightened): part of the image URL, so a browser
+    # never keeps showing the page as it was before, while the frames are drawn for the turned one
+    image_rev: int = 0
     # patient file: normalized 9-digit ID; auto (valid, read with confidence) | suggested | manual | rejected
     patient_id: Optional[str] = SQLField(default=None, index=True)
     patient_link: Optional[str] = None
@@ -100,6 +105,16 @@ class Correction(SQLModel, table=True):
     user_id: Optional[int] = SQLField(default=None, foreign_key="user.id")
 
 
+class PatientName(SQLModel, table=True):
+    """The name a person confirmed for a patient (ID) when a commitment came with another one: it replaces the
+    names read on the earlier forms, which keep what they say."""
+    patient_id: str = SQLField(primary_key=True)
+    full_name: str
+    previous_names: str = "[]"  # JSON list, newest last
+    changed_at: datetime = SQLField(default_factory=datetime.utcnow)
+    changed_by: Optional[int] = SQLField(default=None, foreign_key="user.id")
+
+
 class ExportSetting(SQLModel, table=True):
     """The export options chosen for a batch (the password is never stored)."""
     batch_id: int = SQLField(foreign_key="batch.id", primary_key=True)
@@ -140,6 +155,7 @@ class User(SQLModel, table=True):
     token_version: int = 0  # bumped on password reset / role change / deactivation: older tokens stop working
     created_at: Optional[datetime] = SQLField(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
 
 
 class AuditLog(SQLModel, table=True):

@@ -2,6 +2,7 @@ import type { Messages } from "./he";
 import { rolesAr } from "./roles";
 import { edgeAr } from "./edge";
 import { p2dAr } from "./phase2d";
+import { guideAr } from "./guide";
 
 /** Arabic noun forms by plural category: one, two, few (3–10), many (11–99), other (100+). */
 type Nouns = [one: string, two: string, few: string, many: string, other: string];
@@ -45,12 +46,11 @@ export const ar: Messages = {
   "nav.review": "3. المراجعة والتحرير",
   "nav.export": "4. التصدير إلى Excel",
   "header.tagline": "نظام ذكي لتحويل النماذج الطبية إلى ملفات Excel",
-  "header.secure": "خادم آمن متوافق مع HIPAA/GDPR",
   "header.help": "مساعدة",
   "header.userName": "د. ميخال ليفي",
   "header.userRole": "مديرة طبية",
   "header.profile": "الملف الشخصي",
-  "footer.encrypted": "البيانات الطبية مشفّرة من طرف إلى طرف وفقًا لأنظمة الصحة الرقمية في إسرائيل",
+  "footer.encrypted": "البيانات الطبية مشفّرة أثناء النقل والتخزين وفقًا لأنظمة الصحة الرقمية في إسرائيل",
   "footer.privacy": "سياسة الخصوصية وأمن البيانات",
   "footer.support": "الدعم السريري والفني",
 
@@ -75,6 +75,17 @@ export const ar: Messages = {
   "reason.recovered_on_zoom": "قُرئ عند التكبير",
   "reason.learned_correction": "قيمة من تصحيحات سابقة",
   "reason.often_corrected": "كثيرًا ما كانت خاطئة: يرجى التحقق",
+  "reason.name_from_patient_file": "تم أخذ الاسم من ملف المريض لهذه الهوية",
+  "reason.id_name_conflict": "هذه الهوية مسجلة باسم آخر: أحدهما خاطئ",
+  "err.name_change_pending": "الاسم في هذا النموذج يختلف عن الاسم المسجل لهذه الهوية: اعتمد تغيير الاسم، أو احذف الالتزام، أو امسح التزاماً مصححاً. إلى ذلك الحين لا يمكن تمرير النموذج",
+  "reason.name_change": "هذه الهوية مسجلة باسم \"{name}\". إذا كان هذا تغييراً للاسم، فإن اعتماد القيمة يحدّث اسم المريض. وإلى ذلك الحين لا يمكن تصدير النموذج: امسح التزاماً مصححاً أو احذف هذا الالتزام",
+  "review.approveNameChange": "اعتماد تغيير الاسم",
+  "review.deleteForm": "حذف هذا الالتزام",
+  "review.deleteFormConfirm": "هل تريد حذف هذا الالتزام؟ لا يمكن التراجع.",
+  "patients.nameChanged": "تم تغيير اسم المريض من {old} إلى {new}. قد تحمل بعض المستندات في الملف اسماً غير مطابق.",
+  "patients.nameChangedBadge": "تغيّر الاسم",
+  "reason.not_identified": "لم يتم التعرف",
+  "reason.sender_resolved": "تم أخذ الجهة من القائمة (قسم ← مؤسسة)",
 
   // Upload
   "upload.errUnsupported": plural(FILES, (n) => `تم رفض ${n} — الصيغ المدعومة فقط PDF, TIFF, PNG, JPG, HEIC`),
@@ -84,7 +95,7 @@ export const ar: Messages = {
   "upload.processLabel": "مسار التحويل السريري",
   "upload.stepLabel": "الخطوة 1 من 4: استقبال المستندات",
   "upload.storage": "تخزين مؤقت آمن:",
-  "upload.encrypted": "مشفّر SHA-256",
+  "upload.encrypted": "مشفّر AES-256",
   "upload.title": "مسح وتحويل تلقائي للمستندات والنماذج الطبية",
   "upload.intro":
     "اسحب إلى هنا الإحالات وملخصات الخروج وفحوصات الدم أو نماذج 17 الممسوحة. سيتعرف النظام على الحقول ويقرأ خط اليد ويحوّلها إلى جداول بيانات دقيقة جاهزة للتصدير إلى Excel.",
@@ -306,7 +317,7 @@ export const ar: Messages = {
   "export.newScan": "بدء مسح جديد",
   "export.sendDirect": "إرسال مباشر إلى Clipro / Chameleon",
   "export.sendNotice": "الإرسال المباشر إلى Clipro / Chameleon غير مُعدّ بعد. نزّل الملف واستورده إلى النظام.",
-  "export.auditNote": "تم الفحص بمحرك التحقق من المخطط الطبي v2.4 وفق متطلبات صناديق المرضى (كلاليت، مكابي، مئوحيدت، لئوميت)",
+  "export.auditNote": "تم الفحص بمحرك التحقق من المخطط الطبي وفق متطلبات صناديق المرضى (كلاليت، مكابي، مئوحيدت، لئوميت)",
   "export.checksumOnDownload": "يُحسب عند التنزيل",
   "export.confirmTitle": "توجد حقول لم تتم مراجعتها",
   "export.confirmDesc": plural(FIELDS, (n) => `تبقّى ${n} بانتظار المراجعة. التصدير على أي حال؟`),
@@ -322,4 +333,7 @@ export const ar: Messages = {
 
   // Live review, users, patient file, validation rules (roadmap 2ד)
   ...p2dAr,
+
+  // The live user guide behind the "?" button
+  ...guideAr,
 };

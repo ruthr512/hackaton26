@@ -33,6 +33,12 @@ def start_background(coro) -> None:
     task = asyncio.create_task(coro)
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
+    task.add_done_callback(_log_task_failure)
+
+
+def _log_task_failure(task: asyncio.Task) -> None:
+    if not task.cancelled() and task.exception() is not None:
+        log.error("background task failed", exc_info=task.exception())
 
 
 def _safe_name(name: str) -> str:

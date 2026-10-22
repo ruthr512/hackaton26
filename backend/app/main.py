@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -6,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from app.api import auth, batches, config, dashboard, export, forms, learning, patients, rules, users, workflow
+from app import retention
 from app.config import get_settings
 from app.db import get_engine, init_db
 from app.models import Batch, Form, SourceFile
@@ -36,7 +38,9 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ANTHROPIC_API_KEY is not set: add it to .env (see .env.example)")
     init_db()
     recover_interrupted()
+    sweeper = asyncio.create_task(retention.sweep_forever())
     yield
+    sweeper.cancel()
 
 
 app = FastAPI(title="Commitment Forms", lifespan=lifespan)

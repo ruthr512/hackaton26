@@ -2,6 +2,7 @@ import type { Messages } from "./he";
 import { rolesEn } from "./roles";
 import { edgeEn } from "./edge";
 import { p2dEn } from "./phase2d";
+import { guideEn } from "./guide";
 
 export const en: Messages = {
   // Common
@@ -25,12 +26,11 @@ export const en: Messages = {
   "nav.review": "3. Review & edit",
   "nav.export": "4. Export to Excel",
   "header.tagline": "Smart conversion of medical forms to Excel files",
-  "header.secure": "HIPAA/GDPR compliant secure server",
   "header.help": "Help",
   "header.userName": "Dr. Michal Levi",
   "header.userRole": "Medical Director",
   "header.profile": "Profile",
-  "footer.encrypted": "Medical data is end-to-end encrypted in line with Israeli digital health regulations",
+  "footer.encrypted": "Medical data is encrypted in transit and at rest in line with Israeli digital health regulations",
   "footer.privacy": "Privacy & data security policy",
   "footer.support": "Clinical & technical support",
 
@@ -55,6 +55,17 @@ export const en: Messages = {
   "reason.recovered_on_zoom": "Read on zoom",
   "reason.learned_correction": "Value from earlier corrections",
   "reason.often_corrected": "Often wrong before: please check",
+  "reason.name_from_patient_file": "Name taken from the patient file of this ID",
+  "reason.id_name_conflict": "This ID is already filed under a different name: one of them is wrong",
+  "err.name_change_pending": "The name on this form differs from the name filed under this ID: approve the name change, delete the commitment, or scan a corrected one. Until then the form cannot move on",
+  "reason.name_change": "This ID is filed under the name \"{name}\". If this is a name change, approving the value updates the patient's name. Until then the form cannot be exported: scan a corrected commitment, or delete this one",
+  "review.approveNameChange": "Approve name change",
+  "review.deleteForm": "Delete this commitment",
+  "review.deleteFormConfirm": "Delete this commitment? This cannot be undone.",
+  "patients.nameChanged": "The patient's name was changed from {old} to {new}. Some documents in the file may carry a name that no longer matches.",
+  "patients.nameChangedBadge": "Name changed",
+  "reason.not_identified": "Not identified",
+  "reason.sender_resolved": "Sender taken from the list (department → institution)",
 
   // Upload
   "upload.errUnsupported": {
@@ -67,7 +78,7 @@ export const en: Messages = {
   "upload.processLabel": "Clinical conversion flow",
   "upload.stepLabel": "Step 1 of 4: Document intake",
   "upload.storage": "Secure temporary storage:",
-  "upload.encrypted": "SHA-256 encrypted",
+  "upload.encrypted": "AES-256 encrypted",
   "upload.title": "Automatic scanning and conversion of medical documents and forms",
   "upload.intro":
     "Drop scanned referrals, discharge summaries, blood tests or Form 17s here. The system detects the fields, reads handwriting and turns them into accurate data tables ready for Excel.",
@@ -292,7 +303,7 @@ export const en: Messages = {
   "export.newScan": "Start a new scan",
   "export.sendDirect": "Send directly to Clipro / Chameleon",
   "export.sendNotice": "Direct sending to Clipro / Chameleon is not configured yet. Download the file and import it into the system.",
-  "export.auditNote": "Checked by medical schema validation engine v2.4 against HMO requirements (Clalit, Maccabi, Meuhedet, Leumit)",
+  "export.auditNote": "Checked by medical schema validation engine against HMO requirements (Clalit, Maccabi, Meuhedet, Leumit)",
   "export.checksumOnDownload": "computed on download",
   "export.confirmTitle": "Some fields have not been reviewed",
   "export.confirmDesc": {
@@ -311,4 +322,7 @@ export const en: Messages = {
 
   // Live review, users, patient file, validation rules (roadmap 2ד)
   ...p2dEn,
+
+  // The live user guide behind the "?" button
+  ...guideEn,
 };

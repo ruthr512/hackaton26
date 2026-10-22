@@ -56,7 +56,12 @@ documents:
   read: true
 
 extract:
-  concurrency: 16   # parallel Claude calls for the whole server (all pages of all files are sent at once)
+  provider: claude  # who reads the page: claude | gemini (GEMINI_API_KEY, GEMINI_MODEL in .env)
+  # Who re-reads each value independently (default: the provider itself). A different model makes the check far more
+  # valuable, because two models rarely misread the same way: provider claude + verifier gemini, or
+  # models.double_check: claude-opus-5-5 for a stronger second Claude.
+  verifier: null
+  concurrency: 16  # parallel Claude calls for the whole server (all pages of all files are sent at once)
   adaptive: true    # on a rate limit: halve, then creep back up
   max_retries: 4
   base_delay_seconds: 1.0
@@ -67,11 +72,27 @@ localize:
   enabled: true
   margin: 0.06
 
+# What happens to a field depends only on its final confidence (see pipeline/stages/confidence.py): the model's own
+# score is only one input, next to the independent second read, validation and handwriting.
 confidence:
-  threshold: 0.85
+  empty_below: 0.50   # under 50%: the value is dropped, the field stays empty and says "not identified"
+  review_below: 0.80  # 50-80%: an intake clerk checks it. From 80% it is approved automatically.
+  agree_bonus: 0.15   # two independent reads agree
+  disagree_cap: 0.60  # they disagree (or the second read failed)
+  misread_cap: 0.60   # the ID check digit / the date is invalid: the value was probably misread
+  doubt_cap: 0.70     # the model says it is hard to read, or a sender spelling was matched by guess
+  unverified_cap: 0.79  # handwriting is never accepted after a single read
+
+# An ID number already in the system identifies the person: an unsure name is taken from the patient file,
+# and a clearly different name for the same ID is flagged as an error.
+identity:
+  id_min_confidence: 0.70  # the ID is trusted to identify the person from this confidence (and a valid check digit)
+  name_match: 75           # name similarity (0-100) from which two names, in the same script, are the same person
+  name_min_confidence: 0.65  # a name read with less than this is not trusted over the name filed under the ID
 
 double_check:
   enabled: true
+  scope: all  # all: every value is read a second time, independently | doubtful: only values a person would check anyway
 
 # Learning from human corrections (only corrections on approved forms count).
 learning:

@@ -42,6 +42,12 @@ Everything runs locally. The only external call is the Claude API, and it receiv
 - **Sign-out:** a password reset, role change or deactivation signs the user out everywhere (`token_version`).
 - **First admin:** `admin1` (with `DEMO_PASSWORD`) is created when no active admin exists.
 
+### Live user guide
+- **The "?" button** in the header opens a menu: the tour for the user's role, a guide for another role, or "continue where I stopped".
+- **Tour:** a step-by-step walk that moves between the real screens and highlights the relevant element, per role (intake, approver, lab manager, admin). It shows in the UI language, and a role the user does not hold shows explanations only.
+- **First sign-in:** a welcome screen offers the tour, until the user ticks "don't show again".
+- **Code:** `frontend/src/guide/`. Steps and their anchors are in `steps.ts` (anchors are `data-guide` attributes on the screens); texts are in `frontend/src/i18n/locales/guide.ts`, in every UI language.
+
 ### Patient file
 - **Screens:** `/patients` (search by ID, name or commitment number) and `/patients/{id}`.
 - **Automatic filing:** forms are filed by normalized ID automatically only when the ID is valid and was read with confidence.
@@ -61,14 +67,14 @@ Everything runs locally. The only external call is the Claude API, and it receiv
 
 | File | What |
 |---|---|
-| `config/pipeline.yaml` | stage order, concurrency (`adaptive`), model per stage (`models:`), `early_save`, `documents.read`, retries, confidence threshold, double-check on/off |
+| `config/pipeline.yaml` | stage order, concurrency (`adaptive`), model per stage (`models:`), `early_save`, `documents.read`, retries, confidence bands, double-check on/off and scope, `extract.verifier` (a second model for the independent re-read) |
 | `config/senders.yaml` | closed list of senders with aliases, and the fuzzy-match threshold |
 | `config/export.yaml` | Excel columns (order and Hebrew headers), date format, separator |
 | `.env` | `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` (default `claude-sonnet-5-5`) |
 
 ### How confidence works
 
-A field's level is its **weakest signal**: model confidence below the threshold, illegibility, or a failed validation (ID check digit, invalid or future date, sender not in the list). A value the model couldn't read is left **empty**, never guessed.
+A field's level comes from its **final confidence**, built from evidence rather than the model's own score (which is usually "100%"): the independent second read of every value (agreement lifts it, disagreement caps it at 60%), a failed validation (ID check digit, invalid or future date) caps it, and handwriting is never accepted after one read. **Under 50%** the value is dropped and the field says *not identified*; **50-80%** goes to an intake clerk; **from 80%** it is approved automatically (`confidence:` in `pipeline.yaml`). A sender not in the list, or a lab rule, still sends the field to a person. A department ("מחלקת פנימית ב' לניאדו") is filed under its hospital.
 
 With `double_check.enabled`, fields flagged only by soft signals (low confidence or illegible) get a second, focused read. If both reads agree, the field becomes ok. Validation failures always stay orange.
 

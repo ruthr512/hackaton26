@@ -10,9 +10,8 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from PIL import Image
 
-from app.fields import FIELD_NAMES, MULTI_FIELDS
+from app.fields import MULTI_FIELDS
 from pipeline.base import Context, FieldResult, FormDoc
-from pipeline.learning import lessons_of
 
 MAX_EDGE = 1568  # Claude's recommended long edge; keeps payloads small
 
@@ -20,8 +19,17 @@ FIELD_HINTS = {
     "full_name": "שם מלא של המטופל/ת (פרטי + משפחה) כפי שכתוב — מודפס או בכתב יד, בכל שפה",
     "id_number": "מספר תעודת זהות של המטופל/ת (ספרות בלבד) — מודפס או בכתב יד",
     "central_numbers": "מספרים מרכזיים (מספרי דגימה/מעבדה) — כל המספרים שמופיעים",
-    "receipt_date": "תאריך קבלה, בדיוק כפי שכתוב בטופס",
-    "sender": "הגורם השולח (קופת חולים / בית חולים / מרפאה)",
+    "receipt_date": (
+        "תאריך קבלה (התאריך שבו הדגימה/הטופס התקבלו במעבדה), בדיוק כפי שכתוב בטופס. "
+        "אם מופיעים בטופס גם תאריך אחר (תאריך הטופס, תאריך הפניה, תאריך הוצאה, תאריך דגימה, תאריך הדפסה) "
+        "וגם 'תאריך קבלה' — קח רק את תאריך הקבלה; אל תחליף אותו בתאריך האחר. "
+        "אם אין תאריך קבלה מפורש, החזר null"
+    ),
+    "sender": (
+        "הגורם המפנה: קופת החולים או בית החולים (המוסד, לא המחלקה). אם כתובה מחלקה או מרפאה של מוסד "
+        "(למשל 'מחלקת פנימית ב' לניאדו') — החזר את שם המוסד ('לניאדו'), לא את שם המחלקה. "
+        "העתק את שם המוסד כפי שכתוב; אל תמציא שם שלא מופיע בטופס"
+    ),
     "commitment_numbers": "מספרי התחייבות — כל המספרים שמופיעים",
     "test_type": "סוג הבדיקה המבוקשת (למשל PCR, סרולוגיה, תרבית) כפי שכתוב או מסומן בטופס; null אם לא מופיע",
     "referral_number": "מספר הפניה / מספר הזמנה, אם מופיע בטופס (לא מספר התחייבות); null אם לא מופיע",
@@ -40,6 +48,13 @@ SYSTEM = (
     "Never infer or invent values, and never copy a value from a different field."
 )
 
+SENDER_LIST_PROMPT = (
+    "\nKnown senders (hospitals and health funds): {names}. "
+    "For the sender field: if the form names one of these (or a department / clinic of one), return that sender's "
+    "name exactly as listed. If the sender is a hospital or fund that is NOT in this list, return the institution's "
+    "name as written on the form (without the department), never the closest listed name."
+)
+
 PROMPT = (
     "Extract the fields from this commitment form using the record_form tool. "
     "Read handwritten values as carefully as printed ones; a handwritten value may override a printed placeholder. "
@@ -51,6 +66,16 @@ PROMPT = (
     "[x0, y0, x1, y1], fractions of the page width/height between 0 and 1, measured from the top-left corner. "
     "Give box even when value is null but something is written there, so it can be re-read zoomed in. "
     "For a list field, one box that covers all of its numbers."
+)
+
+# Models say "1.0" for almost everything unless told what the number means; the pipeline re-reads and cross-checks
+# every value anyway, so an honest low score costs nothing and an inflated one hides errors.
+CALIBRATION = (
+    "\nConfidence is a probability, not a feeling: of 100 values you rate 0.9, about 90 must be exactly right. "
+    "Use 0.95-1.0 only for crisp printed text where every character is unambiguous. "
+    "Handwriting is rarely above 0.85. If any character could be read two ways (1/7, 0/6, 4/9, ר/ד, ו/ז, a/o) "
+    "stay at 0.6 or less. A value you partly guessed, or read from a faint or cut-off area, is 0.4 or less. "
+    "If you would not bet on the value, return null instead of a guess."
 )
 
 
@@ -130,9 +155,7 @@ def parse_field(raw: Any) -> FieldResult:
 
 class Extract:
     async def run(self, form: FormDoc, ctx: Context) -> FormDoc:
-        result = await ctx.call_tool(
-            "extract", image_b64=encode_page(form.image_path), media_type="image/jpeg",
-            prompt=PROMPT + lessons_of(ctx).prompt_for(FIELD_NAMES), tool=build_tool(FIELD_NAMES), system=SYSTEM,
-        )
-        form.fields = {name: parse_field(result.get(name)) for name in FIELD_NAMES}
+        from pipeline.readers import reader_of  # readers imports this module's prompts and helpers
+
+        form.fields = await reader_of(ctx).read_page(ctx, form.image_path)
         return form

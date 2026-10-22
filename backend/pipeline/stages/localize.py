@@ -12,6 +12,7 @@ from app.logging_utils import get_logger, log_event
 from pipeline.base import Context, FormDoc
 from pipeline.crops import MEDIA_TYPE, crop_region
 from pipeline.normalizers import normalize_field, values_equal
+from pipeline.readers import reader_of
 from pipeline.stages.extract import SYSTEM, build_tool, parse_box
 
 log = get_logger("localize")
@@ -62,7 +63,7 @@ class Localize:
         cfg = ctx.pipeline_cfg.get("localize", {})
         names = [n for n, fr in form.fields.items() if fr.value is not None and fr.hint_box]
         verified = {}
-        if cfg.get("enabled", False):
+        if cfg.get("enabled", False) and reader_of(ctx).tighten_boxes:
             results = await asyncio.gather(
                 *(_locate(ctx, form, n, float(cfg.get("margin", 0.06))) for n in names), return_exceptions=True)
             verified = dict(zip(names, results))

@@ -106,7 +106,8 @@ def list_users(q: Optional[str] = None, role: Optional[str] = None, active: Opti
             continue
         if active is not None and bool(u.active) != active:
             continue
-        out.append({**user_dict(u), "created_at": u.created_at.isoformat() if u.created_at else None})
+        out.append({**user_dict(u), "created_at": u.created_at.isoformat() if u.created_at else None,
+                    "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None})
     return out
 
 

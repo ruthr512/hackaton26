@@ -28,7 +28,7 @@ def _page(tmp_path):
 
 def _ctx(client):
     return Context(settings=None, client=client, senders_cfg={},
-                   pipeline_cfg={"confidence": {"threshold": 0.85}, "double_check": {"enabled": True}})
+                   pipeline_cfg={"confidence": {"threshold": 0.65}, "double_check": {"enabled": True}})
 
 
 def _run(form, client):
@@ -48,23 +48,26 @@ def test_crop_upscales_small_box_and_needs_a_box(tmp_path):
     assert [_size(x)[0] for x in halves_b64(page)] == [1000, 1000]
 
 
-def test_handwritten_high_confidence_is_review_without_double_check(tmp_path):
-    form = FormDoc(batch_id=0, source_file_id=0, image_path=_page(tmp_path), fields={
-        "full_name": FieldResult(value="ישראל ישראלי", confidence=0.99, handwritten=True)})
-    ctx = _ctx(None)
-    ctx.pipeline_cfg["double_check"]["enabled"] = False
-    out = asyncio.run(Confidence().run(form, ctx))
-    assert out.fields["full_name"].level == "review"
-    assert any(r["code"] == "handwritten" for r in out.fields["full_name"].reasons)
+def test_handwriting_is_never_ok_after_one_read_printed_is_ok_from_80_percent(tmp_path):
+    def level(conf, handwritten):
+        form = FormDoc(batch_id=0, source_file_id=0, image_path=_page(tmp_path), fields={
+            "full_name": FieldResult(value="ישראל ישראלי", confidence=conf, handwritten=handwritten)})
+        ctx = _ctx(None)
+        ctx.pipeline_cfg["double_check"]["enabled"] = False
+        return asyncio.run(Confidence().run(form, ctx)).fields["full_name"]
+
+    assert level(0.80, handwritten=False).level == "ok"
+    hand = level(0.99, handwritten=True)
+    assert hand.level == "review" and any(r["code"] == "handwritten" for r in hand.reasons)
 
 
 def test_crop_agreement_upgrades_handwritten_to_ok(tmp_path):
     form = FormDoc(batch_id=0, source_file_id=0, image_path=_page(tmp_path), fields={
-        "full_name": FieldResult(value="ישראל ישראלי", confidence=0.9, handwritten=True,
+        "full_name": FieldResult(value="ישראל ישראלי", confidence=0.7, handwritten=True,
                                  box=[0.6, 0.7, 0.8, 0.72])})
     client = Stub({"full_name": {"value": "ישראל  ישראלי", "confidence": 0.9, "legible": True}})
     out = _run(form, client)
-    assert out.fields["full_name"].level == "ok"
+    assert out.fields["full_name"].level == "ok"  # (0.7 + 0.9) / 2 + 0.15 = 0.95
     assert client.calls == [("image/jpeg", ["full_name"])]  # one zoomed crop, one field
 
 
@@ -73,7 +76,7 @@ def test_empty_name_recovered_on_zoom_is_review_never_ok(tmp_path):
         "full_name": FieldResult(value=None, box=[0.6, 0.7, 0.8, 0.72])})
     client = Stub({"full_name": {"value": "ישראל ישראלי", "confidence": 0.99, "legible": True}})
     f = _run(form, client).fields["full_name"]
-    assert f.value == "ישראל ישראלי" and f.level == "review"
+    assert f.value == "ישראל ישראלי" and f.level == "review" and f.confidence < 0.80
     assert any(r["code"] == "recovered_on_zoom" for r in f.reasons)
 
 

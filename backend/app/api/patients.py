@@ -2,6 +2,7 @@
 
 Viewing a patient's file is itself audited (identifying medical data).
 """
+import json
 import re
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
@@ -14,7 +15,7 @@ from app import audit, events
 from app.api.serialize import load_value
 from app.auth import ROLE_ADMIN, ROLE_APPROVER, ROLE_INTAKE, ROLE_MANAGER, require_roles
 from app.db import get_session
-from app.models import Field, Form, SourceFile, User
+from app.models import Field, Form, PatientName, SourceFile, User
 from app.patients import FILED, LINK_MANUAL, LINK_REJECTED, LINK_SUGGESTED, patient_key
 from pipeline.normalizers import normalize_name
 
@@ -77,15 +78,30 @@ def search(q: str = "", s: Session = Depends(get_session)):
         if needle and not any(_matches(needle, fm, values[fm.id]) for fm in fms):
             continue
         names = list(dict.fromkeys(n for n in (_name_of(fm, values[fm.id]) for fm in fms) if n))
+        rename = _rename_of(s, pid)
         out.append({
             "patient_id": pid,
-            "names": names,
+            "names": _names_for(rename, names),
+            "name_changed": rename is not None,
             "commitments": sum(1 for fm in fms if fm.doc_type == "commitment"),
             "documents": sum(1 for fm in fms if fm.doc_type != "commitment"),
             "last_seen": max(fm.created_at for fm in fms).isoformat(),
         })
     out.sort(key=lambda r: r["last_seen"], reverse=True)
     return out[:SEARCH_LIMIT]
+
+
+def _rename_of(s: Session, pid: str) -> Optional[Dict[str, Any]]:
+    """Set when a clerk approved a new name for this patient: older documents may still carry the old one."""
+    row = s.get(PatientName, pid)
+    if row is None:
+        return None
+    return {"current": row.full_name, "previous": json.loads(row.previous_names or "[]"),
+            "at": row.changed_at.isoformat() if row.changed_at else None}
+
+
+def _names_for(rename: Optional[Dict[str, Any]], names: List[str]) -> List[str]:
+    return [rename["current"], *(n for n in names if n != rename["current"])] if rename else names
 
 
 def _form_row(fm: Form, values: Dict[str, Any], filenames: Dict[int, str]) -> Dict[str, Any]:
@@ -113,12 +129,14 @@ def patient_file(pid: str, s: Session = Depends(get_session), user: User = Depen
         select(SourceFile).where(SourceFile.id.in_({f.source_file_id for f in every}))).all()}
     rows = {fm.id: _form_row(fm, values[fm.id], filenames) for fm in every}
     names = list(dict.fromkeys(n for n in (_name_of(fm, values[fm.id]) for fm in filed) if n))
+    rename = _rename_of(s, key)
     audit.record(s, user, "patient_viewed", "patient", 0, after={"patient_id": key})
     s.commit()
     commitments = [rows[f.id] for f in filed if f.doc_type == "commitment"]
     return {
         "patient_id": key,
-        "names": names,
+        "names": _names_for(rename, names),
+        "name_change": rename,
         "commitments": sorted(commitments, key=lambda r: r["fields"].get("receipt_date") or r["created_at"] or "",
                               reverse=True),
         "documents": [rows[f.id] for f in filed if f.doc_type != "commitment"],

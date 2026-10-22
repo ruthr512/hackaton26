@@ -28,6 +28,7 @@ import { fieldLabel, hasRole, roleLabel, timeAgo, workflowLabel } from "@/lib/la
 import { useI18n } from "@/i18n";
 import { usePolling } from "@/hooks/usePolling";
 import { Card, CardHeader, Kpi } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { formLink } from "@/pages/IntakeQueuePage";
 
 /* Chart colors. The four workflow stages keep one hue each across every chart (validated with the
@@ -45,10 +46,6 @@ const GRID = "rgba(43,41,109,0.08)";
 const AXIS = { fontSize: 12, fill: "#3c4a45" };
 /* sequential blue ramp, light -> dark, for the problem-field heatmap */
 const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
-
-function Icon({ name, className = "" }: { name: string; className?: string }) {
-  return <span className={`material-symbols-outlined ${className}`}>{name}</span>;
-}
 
 function Empty() {
   const { t } = useI18n();
@@ -108,7 +105,7 @@ export function DashboardPage() {
         </div>
         {error && <div className="rounded-lg bg-error-container px-4 py-1.5 text-body-md text-on-error-container">{error}</div>}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-space-md" data-guide="dash-kpis">
           <Kpi
             label={t("dash.kpiAccuracy")}
             value={accuracy.data?.accuracy != null ? `${accuracy.data.accuracy}%` : "—"}
@@ -339,7 +336,7 @@ function Reassign({ workload, onChanged }: { workload: WorkloadRow[]; onChanged:
         </table>
       </Card>
 
-      <Card className="xl:col-span-7 overflow-hidden">
+      <Card className="xl:col-span-7 overflow-hidden" data-guide="dash-reassign">
         <CardHeader
           title={t("dash.reassign")}
           hint={t("dash.reassignHint")}
@@ -351,12 +348,13 @@ function Reassign({ workload, onChanged }: { workload: WorkloadRow[]; onChanged:
         ) : (
           <div className="max-h-[360px] overflow-y-auto">
             <table className="w-full">
-              <thead className="bg-surface-container-low text-navy font-label-md text-label-md sticky top-0">
+              {/* z-10 + opaque th background: positioned cells in the rows paint above a z-index:auto sticky header */}
+              <thead className="text-navy font-label-md text-label-md sticky top-0 z-10">
                 <tr>
-                  <th className="px-space-md py-2 text-start">{t("col.form")}</th>
-                  <th className="px-space-md py-2 text-start">{t("col.status")}</th>
-                  <th className="px-space-md py-2 text-start">{t("col.waiting")}</th>
-                  <th className="px-space-md py-2 text-start">{t("col.assignee")}</th>
+                  <th className="px-space-md py-2 text-start bg-surface-container-low">{t("col.form")}</th>
+                  <th className="px-space-md py-2 text-start bg-surface-container-low">{t("col.status")}</th>
+                  <th className="px-space-md py-2 text-start bg-surface-container-low">{t("col.waiting")}</th>
+                  <th className="px-space-md py-2 text-start bg-surface-container-low">{t("col.assignee")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -373,22 +371,14 @@ function Reassign({ workload, onChanged }: { workload: WorkloadRow[]; onChanged:
                       {timeAgo(f.waiting_since, locale)}
                     </td>
                     <td className="px-space-md py-2">
-                      <label className="relative inline-flex items-center">
-                        <Icon name="person" className="text-[18px] text-outline absolute start-2 pointer-events-none" />
-                        <select
-                          aria-label={t("dash.reassign")}
-                          value={f.assigned_to ?? ""}
-                          onChange={(e) => e.target.value && assign(f.id, Number(e.target.value))}
-                          className="h-9 rounded-[10px] bg-white border border-[rgba(43,41,109,0.12)] ps-8 pe-3 font-body-sm text-body-sm text-navy"
-                        >
-                          {f.assigned_to == null && <option value="">{t("dash.unassigned")}</option>}
-                          {clerks.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.display_name || u.username}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <Select
+                        ariaLabel={t("dash.reassign")}
+                        icon="person"
+                        value={f.assigned_to == null ? "" : String(f.assigned_to)}
+                        placeholder={t("dash.unassigned")}
+                        options={clerks.map((u) => ({ value: String(u.id), label: u.display_name || u.username }))}
+                        onChange={(v) => assign(f.id, Number(v))}
+                      />
                     </td>
                   </tr>
                 ))}

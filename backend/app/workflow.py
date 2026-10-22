@@ -4,14 +4,16 @@ needs_fix ──submit──▶ pending_approval ──approve──▶ approved
 returned  ──submit──▶        │
     ▲                        └──return (comment)──▶ returned
 """
+import json
 from typing import Iterable, Optional
 
 from fastapi import HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app import audit
 from app.fields import LEVEL_OK
-from app.models import Form, User
+from app.models import Field, Form, User
+from app.senders import learn_sender
 
 NEEDS_FIX = "needs_fix"
 PENDING_APPROVAL = "pending_approval"
@@ -54,6 +56,8 @@ def transition(s: Session, form: Form, user: Optional[User], action: str, commen
         form.approver_comment = comment
     elif action == "approve":
         form.approver_comment = None
+        sender = s.exec(select(Field.value).where(Field.form_id == form.id, Field.name == "sender")).first()
+        learn_sender(s, user, json.loads(sender) if sender else None, form.id)  # approved: the list now knows it
     s.add(form)
     audit.record(s, user, "status_change", "form", form.id, before={"workflow": before},
                  after={"workflow": to}, comment=comment)

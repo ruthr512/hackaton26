@@ -79,6 +79,15 @@ export function PatientPage() {
               {file.patient_id}
               <Icon name="verified" className="text-primary text-[18px]" />
             </div>
+            {file.name_change && (
+              <p className="font-body-sm text-body-sm text-tertiary font-bold flex items-start gap-1" dir="auto">
+                <Icon name="warning" className="text-[16px] shrink-0 mt-0.5" />
+                {t("patients.nameChanged", {
+                  old: file.name_change.previous[file.name_change.previous.length - 1] ?? "",
+                  new: file.name_change.current,
+                })}
+              </p>
+            )}
             {file.names.length > 1 && (
               <p className="font-body-sm text-body-sm text-on-surface-variant" dir="auto">
                 {t("patients.otherNames")}: {file.names.slice(1).join(" · ")}

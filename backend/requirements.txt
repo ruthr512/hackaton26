@@ -14,3 +14,4 @@ rapidfuzz>=3.6
 openpyxl>=3.1
 msoffcrypto-tool>=5.4
 PyJWT>=2.8
+cryptography>=42

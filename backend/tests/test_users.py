@@ -108,3 +108,12 @@ def test_user_changes_are_audited_without_password(tmp_env):
     assert [r.action for r in rows] == ["user_created", "password_reset"]
     dumped = json.dumps([[r.before, r.after] for r in rows])
     assert "pbkdf2" not in dumped and "secret1" not in dumped and "another1" not in dumped
+
+
+def test_list_shows_last_login(tmp_env):
+    with TestClient(app) as client:
+        admin = _login(client, "admin1")
+        _login(client, "manager1")
+        rows = {u["username"]: u for u in client.get("/api/admin/users", headers=admin).json()}
+        assert rows["manager1"]["last_login_at"] is not None
+        assert rows["intake1"]["last_login_at"] is None

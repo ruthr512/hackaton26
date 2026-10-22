@@ -166,7 +166,7 @@ export function RulesPage() {
 
           <div className="lg:col-span-8 flex flex-col gap-space-lg">
             {/* Write */}
-            <Card>
+            <Card data-guide="rules-write">
               <CardHeader icon="edit_note" title={t("rules.writeTitle")} hint={t("rules.writeHint")} />
               <div className="px-space-lg pb-space-lg flex flex-col gap-space-sm">
                 <Textarea value={text} onChange={(e) => setText(e.target.value)} dir="auto" className="text-body-lg" />

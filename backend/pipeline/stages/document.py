@@ -25,7 +25,9 @@ PROMPT = (
     "Record who this document is about and what it is, using the record_document tool: the patient's ID number "
     "(digits only) with your confidence between 0 and 1 that it is exactly right, the patient's full name, the "
     "document date as written, the kind of document, the requested test type (e.g. PCR, serology) if written, "
-    "and the referral / order number if written."
+    "and the referral / order number if written. "
+    "A document may show more than one date (e.g. the date it was issued and a receipt date, 'תאריך קבלה'). "
+    "Tell them apart: if a receipt date is written, doc_date is the receipt date, not the issue date."
 )
 
 TOOL = {

@@ -7,7 +7,6 @@ import time
 from typing import Any, Dict, List, Optional, Set
 
 import anthropic
-import httpx
 
 from app.logging_utils import get_logger, log_event
 
@@ -112,21 +111,30 @@ def _retry_after(e: Exception) -> Optional[float]:
         return None
 
 
+def make_ssl_context(ssl_cert_file: str = "") -> ssl.SSLContext:
+    """httpx alone trusts only certifi's bundle, which lacks the CA of a TLS-intercepting antivirus / filter.
+
+    Trust the operating system's store (where that CA is installed) plus the optional SSL_CERT_FILE.
+    """
+    try:
+        ssl_ctx = ssl.create_default_context()
+    except OSError:
+        # Some antivirus products set SSLKEYLOGFILE to a device Python may not open: that must not break every call.
+        os.environ.pop("SSLKEYLOGFILE", None)
+        ssl_ctx = ssl.create_default_context()
+    if ssl_cert_file and os.path.isfile(ssl_cert_file):
+        ssl_ctx.load_verify_locations(cafile=ssl_cert_file)
+    return ssl_ctx
+
+
 class ClaudeClient:
     def __init__(self, api_key: str, model: str, concurrency: int = 5,
                  max_retries: int = 4, base_delay: float = 1.0, max_tokens: int = 2048,
                  ssl_cert_file: str = "", adaptive: bool = False, cache: bool = True):
-        # httpx alone trusts only certifi's bundle, which lacks the CA of a TLS-intercepting antivirus / filter.
-        # Trust the operating system's store (where that CA is installed) plus the optional SSL_CERT_FILE.
-        try:
-            ssl_ctx = ssl.create_default_context()
-        except OSError:
-            # Some antivirus products set SSLKEYLOGFILE to a device Python may not open: that must not break every call.
-            os.environ.pop("SSLKEYLOGFILE", None)
-            ssl_ctx = ssl.create_default_context()
-        if ssl_cert_file and os.path.isfile(ssl_cert_file):
-            ssl_ctx.load_verify_locations(cafile=ssl_cert_file)
-        http_client = httpx.AsyncClient(verify=ssl_ctx, timeout=httpx.Timeout(120.0, connect=20.0))
+        ssl_ctx = make_ssl_context(ssl_cert_file)
+        # The SDK's own client class: it subclasses whichever HTTP package the installed SDK uses
+        # (httpx, or httpx2 in newer releases, which rejects a plain httpx.AsyncClient).
+        http_client = anthropic.DefaultAsyncHttpxClient(verify=ssl_ctx, timeout=120.0)
         self._client = anthropic.AsyncAnthropic(api_key=api_key, max_retries=0, http_client=http_client)
         self.model = model
         self.limiter = AdaptiveLimiter(concurrency, adaptive=adaptive)

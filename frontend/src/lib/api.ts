@@ -20,6 +20,8 @@ export const OPTIONAL_FIELDS: FieldName[] = ["test_type", "referral_number"];
 export interface Reason {
   kind: string;
   code: string;
+  /** A value the note quotes, e.g. the name an ID is already filed under (name_change). */
+  detail?: string;
 }
 
 export interface FieldData {
@@ -86,6 +88,8 @@ export interface FormData {
   started_at?: string | null;
   /** Shown for review already; the zoomed checks still run in the background. */
   refining?: boolean;
+  /** Counts the times the page image was replaced (see api.imageUrl). */
+  image_rev?: number;
   /** Patient file: normalized 9-digit ID and how the form was filed under it. */
   patient_id?: string | null;
   patient_link?: PatientLink | null;
@@ -207,6 +211,7 @@ export interface User {
   roles?: Role[];
   active?: boolean;
   created_at?: string | null;
+  last_login_at?: string | null;
 }
 
 export interface RolesInfo {
@@ -219,6 +224,8 @@ export interface RolesInfo {
 export interface PatientSummary {
   patient_id: string;
   names: string[];
+  /** A clerk approved a new name: older documents may carry the previous one. */
+  name_changed?: boolean;
   commitments: number;
   documents: number;
   last_seen: string;
@@ -241,6 +248,7 @@ export interface PatientForm {
 export interface PatientFile {
   patient_id: string;
   names: string[];
+  name_change?: { current: string; previous: string[]; at: string | null } | null;
   commitments: PatientForm[];
   documents: PatientForm[];
   suggested: PatientForm[];
@@ -441,7 +449,9 @@ export const api = {
     return res.blob();
   },
   /** <img src> cannot send headers, so the token rides in the query string. */
-  imageUrl: (formId: number) => `/api/forms/${formId}/image?token=${encodeURIComponent(getToken() ?? "")}`,
+  /** rev: the page image is replaced when it is turned / straightened; a new rev is a new URL, so no stale copy. */
+  imageUrl: (formId: number, rev = 0) => `/api/forms/${formId}/image?token=${encodeURIComponent(getToken() ?? "")}&rev=${rev}`,
+  deleteForm: (formId: number) => request<{ ok: boolean }>(`/api/forms/${formId}`, { method: "DELETE" }),
   retryForm: (formId: number) => request<{ ok: boolean }>(`/api/forms/${formId}/retry`, { method: "POST" }),
   /** With `version`, an edit over a newer server value is refused (409, code "conflict"). */
   updateField: (fieldId: number, value: FieldValue, version?: number) =>

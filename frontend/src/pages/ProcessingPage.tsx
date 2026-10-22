@@ -303,8 +303,8 @@ export function ProcessingPage() {
                 {form ? (
                   <div className="relative z-10 inline-block max-w-full shadow-sm bg-white rounded-lg">
                     <img
-                      key={form.id}
-                      src={api.imageUrl(form.id)}
+                      key={`${form.id}-${form.image_rev ?? 0}`}
+                      src={api.imageUrl(form.id, form.image_rev)}
                       alt={t("proc.formAlt")}
                       className="block max-h-[560px] max-w-full w-auto h-auto rounded-lg"
                     />

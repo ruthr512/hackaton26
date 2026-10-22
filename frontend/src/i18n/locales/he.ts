@@ -1,6 +1,7 @@
 import { rolesHe } from "./roles";
 import { edgeHe } from "./edge";
 import { p2dHe } from "./phase2d";
+import { guideHe } from "./guide";
 
 /** A plain string, or plural forms keyed by Intl.PluralRules category (picked by the `count` param). */
 export type Entry = string | ({ other: string } & Partial<Record<Intl.LDMLPluralRule, string>>);
@@ -28,12 +29,11 @@ export const he = {
   "nav.review": "3. סקירה ועריכה",
   "nav.export": "4. ייצוא לאקסל",
   "header.tagline": "מערכת חכמה להמרת טפסים רפואיים לקובצי Excel",
-  "header.secure": "שרת מאובטח תקן HIPAA/GDPR",
   "header.help": "עזרה",
   "header.userName": "ד״ר מיכל לוי",
   "header.userRole": "מנהלת רפואית",
   "header.profile": "פרופיל",
-  "footer.encrypted": "מידע רפואי מוצפן מקצה לקצה בהתאם לתקנות בריאות דיגיטלית ישראל",
+  "footer.encrypted": "מידע רפואי מוצפן בהעברה ובאחסון בהתאם לתקנות בריאות דיגיטלית ישראל",
   "footer.privacy": "מדיניות פרטיות ואבטחת נתונים",
   "footer.support": "תמיכה קלינית ומענה טכני",
 
@@ -58,6 +58,17 @@ export const he = {
   "reason.recovered_on_zoom": "נקרא בהגדלה",
   "reason.learned_correction": "ערך מתיקונים קודמים",
   "reason.often_corrected": "נטייה לטעות בעבר: נא לבדוק",
+  "reason.name_from_patient_file": "שם הוחלף בשם הרשום במערכת לאותה ת.ז.",
+  "reason.id_name_conflict": "ת.ז. קיימת במערכת עם שם אחר: אחד מהם שגוי",
+  "err.name_change_pending": "השם בטופס שונה מהשם הרשום על הת.ז. הזו: יש לאשר את החלפת השם, או למחוק את ההתחייבות, או לסרוק התחייבות מתוקנת. עד אז אי אפשר להעביר את הטופס הלאה",
+  "reason.name_change": "ת.ז. זו רשומה במערכת על שם \"{name}\". אם זו החלפת שם, אישור הערך יעדכן את שם המטופל לשם החדש. ללא אישור הטופס לא יהיה מוכן לייצוא, עד שתיסרק התחייבות מתוקנת או שההתחייבות תימחק",
+  "review.approveNameChange": "אשר החלפת שם",
+  "review.deleteForm": "מחק את ההתחייבות",
+  "review.deleteFormConfirm": "למחוק את ההתחייבות הזו? הפעולה אינה הפיכה.",
+  "patients.nameChanged": "השם של המטופל/ת עודכן מ-{old} ל-{new}. ייתכנו מסמכים בתיק עם שם שאינו תואם.",
+  "patients.nameChangedBadge": "שם עודכן",
+  "reason.not_identified": "לא זוהה",
+  "reason.sender_resolved": "הגורם נלקח מהרשימה (מחלקה ← מוסד)",
 
   // Upload
   "upload.errUnsupported": {
@@ -70,7 +81,7 @@ export const he = {
   "upload.processLabel": "תהליך המרה קליני",
   "upload.stepLabel": "שלב 1 מתוך 4: קליטת מסמכים",
   "upload.storage": "אחסון זמני מאובטח:",
-  "upload.encrypted": "מוצפן SHA-256",
+  "upload.encrypted": "מוצפן AES-256",
   "upload.title": "סריקה והמרה אוטומטית של מסמכים וטפסים רפואיים",
   "upload.intro":
     "גררו לכאן הפניות, סיכומי מחלה, בדיקות דם או טופסי 17 סרוקים. המערכת תזהה את השדות, תפענח כתבי יד ותמיר אותם לטבלאות נתונים מדויקות ומיוצאות לאקסל.",
@@ -295,7 +306,7 @@ export const he = {
   "export.newScan": "התחל סריקה חדשה",
   "export.sendDirect": "שיגור ישיר למערכת קליפרו / קמיליון",
   "export.sendNotice": "השיגור הישיר למערכת קליפרו / קמיליון טרם הוגדר. הורידו את הקובץ וייבאו אותו למערכת.",
-  "export.auditNote": "נבדק במנוע אימות סכימה רפואית v2.4 בהתאם לדרישות קופות החולים (כללית, מכבי, מאוחדת, לאומית)",
+  "export.auditNote": "נבדק במנוע אימות סכימה רפואית בהתאם לדרישות קופות החולים (כללית, מכבי, מאוחדת, לאומית)",
   "export.checksumOnDownload": "מחושב בהורדה",
   "export.confirmTitle": "יש שדות שלא נבדקו",
   "export.confirmDesc": {
@@ -314,6 +325,9 @@ export const he = {
 
   // Live review, users, patient file, validation rules (roadmap 2ד)
   ...p2dHe,
+
+  // The live user guide behind the "?" button
+  ...guideHe,
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof he;

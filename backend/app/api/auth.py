@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -26,6 +28,9 @@ def login(body: LoginBody, s: Session = Depends(get_session)):
     user = s.exec(select(User).where(User.username == username)).first()
     if user is None or not user.active or not verify_password(body.password, user.password_hash):
         raise HTTPException(401, "wrong username or password")
+    user.last_login_at = datetime.utcnow()
+    s.add(user)
+    s.commit()
     log_event(log, "login", user_id=user.id)
     return {"token": create_token(user), "user": user_dict(user)}
 

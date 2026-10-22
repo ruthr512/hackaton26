@@ -17,11 +17,15 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""  # from .env (ANTHROPIC_API_KEY) only; never in source
     claude_model: str = "claude-opus-5-5"
+    gemini_api_key: str = ""  # from .env (GEMINI_API_KEY) only; needed when pipeline.yaml extract.provider is gemini
+    gemini_model: str = ""  # from .env (GEMINI_MODEL): no default, the model is always chosen in configuration
     data_dir: Path = REPO_ROOT / "data"
     config_dir: Path = REPO_ROOT / "config"
     jwt_secret: str = ""  # from .env (JWT_SECRET); a random per-process secret is used when empty
     jwt_ttl_hours: int = 12
+    data_encryption_key: str = ""  # from .env (DATA_ENCRYPTION_KEY): encrypts stored scans; empty = a key file in data_dir
     ssl_cert_file: str = ""  # CA bundle of a TLS-intercepting network filter (SSL_CERT_FILE); empty = system default
+    export_retention_minutes: int = 60  # scans are deleted this long after the batch is exported (EXPORT_RETENTION_MINUTES)
     max_file_mb: int = 50  # per uploaded file (MAX_FILE_MB); the browser checks the same limit first
     demo_password: str = "demo1234"  # password of the seeded demo users (DEMO_PASSWORD)
     # Built-in manager: works only while the site has no active users; needs no DB to log in or to get its rights.

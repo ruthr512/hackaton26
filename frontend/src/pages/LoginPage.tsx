@@ -5,7 +5,8 @@ import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const DEMO_USERS = ["intake1", "approver1", "manager1"];
+const LOGO = "/logo.svg";
+const DEMO_USERS = ["intake1", "approver1", "manager1", "admin1"];
 const DEMO_PASSWORD = "demo1234"; // default of DEMO_PASSWORD in the backend settings
 
 function Icon({ name, className = "" }: { name: string; className?: string }) {
@@ -45,7 +46,7 @@ export function LoginPage() {
     <div className="min-h-screen bg-surface grid grid-cols-1 lg:grid-cols-2">
       <section className="hidden lg:flex flex-col justify-center gap-space-xl px-16 bg-gradient-to-br from-[#2BB99B] to-[#2B296D] text-on-primary">
         <div className="flex items-center gap-space-sm">
-          <Icon name="biotech" className="text-[40px] text-primary-fixed" />
+          <img alt="MedScan AI" className="h-10 w-auto object-contain" src={LOGO} />
           <span className="font-headline-lg text-headline-lg font-bold tracking-tight">MedScan AI</span>
         </div>
         <h1 className="font-display-lg text-display-lg font-extrabold max-w-md">{t("login.heroTitle")}</h1>

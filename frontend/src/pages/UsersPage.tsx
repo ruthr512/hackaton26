@@ -27,6 +27,15 @@ interface Draft {
   password: string;
 }
 
+const initials = (name: string) =>
+  name
+    .replace(/["״׳']/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("");
+
 const emptyDraft: Draft = { id: null, username: "", display_name: "", roles: ["intake"], active: true, password: "" };
 
 /** User management for the system admin: list, create, edit roles, reset password, deactivate. */
@@ -43,6 +52,7 @@ export function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showMatrix, setShowMatrix] = useState(false);
+  const [focusReset, setFocusReset] = useState(false);
 
   const load = () =>
     api
@@ -130,6 +140,19 @@ export function UsersPage() {
     }
   }
 
+  const openEdit = (u: User, reset = false) => {
+    setFocusReset(reset);
+    setNewPassword("");
+    setDraft({
+      id: u.id,
+      username: u.username,
+      display_name: u.display_name,
+      roles: rolesOf(u),
+      active: !!u.active,
+      password: "",
+    });
+  };
+
   const toggleRole = (r: Role) =>
     setDraft((d) => (d ? { ...d, roles: d.roles.includes(r) ? d.roles.filter((x) => x !== r) : [...d.roles, r] } : d));
 
@@ -147,7 +170,7 @@ export function UsersPage() {
             <h1 className="font-headline-lg text-headline-lg font-bold text-on-surface">{t("users.title")}</h1>
             <p className="font-body-md text-body-md text-on-surface-variant">{t("users.subtitle")}</p>
           </div>
-          <Button onClick={() => setDraft({ ...emptyDraft })}>
+          <Button onClick={() => setDraft({ ...emptyDraft })} data-guide="users-new">
             <Icon name="person_add" className="text-[20px]" /> {t("users.new")}
           </Button>
         </div>
@@ -192,6 +215,11 @@ export function UsersPage() {
               </button>
             ))}
           </div>
+          {users && (
+            <span className="ms-auto bg-secondary-fixed/50 text-secondary font-label-md text-label-md font-bold px-3 py-1.5 rounded-xl">
+              {t("users.count", { n: users.length })}
+            </span>
+          )}
         </Card>
 
         <Card className="overflow-hidden">
@@ -203,7 +231,7 @@ export function UsersPage() {
                   <th className="text-start px-space-md py-3">{t("users.col.username")}</th>
                   <th className="text-start px-space-md py-3">{t("users.col.roles")}</th>
                   <th className="text-start px-space-md py-3">{t("users.col.status")}</th>
-                  <th className="text-start px-space-md py-3">{t("users.col.created")}</th>
+                  <th className="text-start px-space-md py-3">{t("users.col.lastLogin")}</th>
                   <th className="px-space-md py-3"></th>
                 </tr>
               </thead>
@@ -224,7 +252,20 @@ export function UsersPage() {
                 )}
                 {users?.map((u) => (
                   <tr key={u.id} className="border-t border-surface-container hover:bg-primary/5">
-                    <td className="px-space-md py-3 font-bold text-on-surface">{u.display_name || "—"}</td>
+                    <td className="px-space-md py-3">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-label-md text-label-md font-bold",
+                            u.active ? "bg-secondary-fixed text-on-secondary-fixed" : "bg-surface-variant text-outline",
+                          )}
+                          aria-hidden
+                        >
+                          {initials(u.display_name || u.username)}
+                        </span>
+                        <span className="font-bold text-on-surface">{u.display_name || "—"}</span>
+                      </div>
+                    </td>
                     <td className="px-space-md py-3 font-data-mono-sm text-data-mono-sm" dir="ltr">
                       {u.username}
                     </td>
@@ -243,7 +284,7 @@ export function UsersPage() {
                       </Badge>
                     </td>
                     <td className="px-space-md py-3 text-on-surface-variant font-body-sm text-body-sm">
-                      {timeAgo(u.created_at ?? null, locale)}
+                      {u.last_login_at ? timeAgo(u.last_login_at, locale) : t("users.never")}
                     </td>
                     <td className="px-space-md py-3">
                       <div className="flex justify-end gap-1">
@@ -251,18 +292,17 @@ export function UsersPage() {
                           type="button"
                           title={t("users.edit")}
                           className="w-8 h-8 rounded-lg hover:bg-surface-container text-secondary flex items-center justify-center"
-                          onClick={() =>
-                            setDraft({
-                              id: u.id,
-                              username: u.username,
-                              display_name: u.display_name,
-                              roles: rolesOf(u),
-                              active: !!u.active,
-                              password: "",
-                            })
-                          }
+                          onClick={() => openEdit(u)}
                         >
                           <Icon name="edit" className="text-[18px]" />
+                        </button>
+                        <button
+                          type="button"
+                          title={t("users.resetPassword")}
+                          className="w-8 h-8 rounded-lg hover:bg-surface-container text-secondary flex items-center justify-center"
+                          onClick={() => openEdit(u, true)}
+                        >
+                          <Icon name="lock_reset" className="text-[18px]" />
                         </button>
                         {u.active ? (
                           <button
@@ -429,6 +469,7 @@ export function UsersPage() {
                           value={newPassword}
                           minLength={6}
                           placeholder={t("users.newPassword")}
+                          autoFocus={focusReset}
                           onChange={(e) => setNewPassword(e.target.value)}
                         />
                         <Button type="button" variant="outline" onClick={resetPassword} disabled={newPassword.length < 6}>

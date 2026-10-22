@@ -53,14 +53,14 @@ export function IntakeQueuePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-space-md" data-guide="queue-kpis">
           {kpis.map(([key, value, icon, accent]) => (
             <Kpi key={key} label={t(key)} value={value} icon={icon} accent={accent} />
           ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
-          <Card className="lg:col-span-8 overflow-hidden">
+          <Card className="lg:col-span-8 overflow-hidden" data-guide="queue-table">
             <CardHeader title={t("intake.queueTitle")} icon="assignment" />
             {data.forms.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-outline">

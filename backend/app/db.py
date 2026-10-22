@@ -31,9 +31,13 @@ def init_db() -> None:
     _add_missing_columns()
     seed_config()
     migrate_config()
+    migrate_senders()
     migrate_pipeline_config()
     migrate_pipeline_speed()
+    migrate_identity()
+    migrate_confidence_bands()
     backfill_blobs()
+    encrypt_legacy_blobs()
     seed_users()
     migrate_user_roles()
     ensure_admin()
@@ -54,9 +58,10 @@ def _add_missing_columns() -> None:
                  "doc_type": "VARCHAR DEFAULT 'commitment'", "reasons": "VARCHAR DEFAULT '[]'",
                  "parent_form_id": "INTEGER", "region_index": "INTEGER", "region_box": "VARCHAR",
                  "premerge_fields": "VARCHAR", "started_at": "DATETIME", "refining": "BOOLEAN DEFAULT 0",
-                 "patient_id": "VARCHAR", "patient_link": "VARCHAR", "doc_meta": "VARCHAR"},
+                 "patient_id": "VARCHAR", "patient_link": "VARCHAR", "doc_meta": "VARCHAR",
+                 "image_rev": "INTEGER DEFAULT 0"},
         "user": {"roles": "VARCHAR DEFAULT '[]'", "token_version": "INTEGER DEFAULT 0",
-                 "created_at": "DATETIME", "updated_at": "DATETIME"},
+                 "created_at": "DATETIME", "updated_at": "DATETIME", "last_login_at": "DATETIME"},
     }
     with get_engine().begin() as conn:
         for table, cols in new_columns.items():
@@ -77,6 +82,31 @@ def seed_config() -> None:
         for name in ("export", "senders", "pipeline"):
             if session.get(ConfigEntry, name) is None:
                 session.add(ConfigEntry(name=name, data=json.dumps(s._yaml(f"{name}.yaml"), ensure_ascii=False)))
+        session.commit()
+
+
+def migrate_senders() -> None:
+    """Stored sender list from before the full hospital list: add the names it lacks.
+
+    Applied once (marked in `_migrations`), so a name the manager later removes does not come back.
+    """
+    import json
+    from app.models import ConfigEntry
+    from validators.senders import merge_defaults
+
+    mark = "full_list"
+    with Session(get_engine()) as session:
+        row = session.get(ConfigEntry, "senders")
+        if row is None:
+            return
+        data = json.loads(row.data or "{}")
+        done = data.setdefault("_migrations", [])
+        if mark in done:
+            return
+        merge_defaults(data, get_settings()._yaml("senders.yaml"))
+        done.append(mark)
+        row.data = json.dumps(data, ensure_ascii=False)
+        session.add(row)
         session.commit()
 
 
@@ -146,6 +176,68 @@ def migrate_pipeline_speed() -> None:
         session.commit()
 
 
+def migrate_identity() -> None:
+    """Stored pipeline from before the identity cross-check: confidence threshold 0.85 -> 0.65, plus its defaults.
+
+    Applied once (marked in `_migrations`). A threshold the manager already changed to something else is kept.
+    """
+    import json
+    from app.models import ConfigEntry
+
+    mark = "identity_65"
+    with Session(get_engine()) as session:
+        row = session.get(ConfigEntry, "pipeline")
+        if row is None:
+            return
+        data = json.loads(row.data or "{}")
+        done = data.setdefault("_migrations", [])
+        if mark in done:
+            return
+        confidence = data.setdefault("confidence", {})
+        if confidence.get("threshold", 0.85) == 0.85:
+            confidence["threshold"] = 0.65
+        data.setdefault("identity", {"id_min_confidence": 0.70, "name_match": 75})
+        confidence.setdefault("handwriting_threshold", 0.80)
+        done.append(mark)
+        row.data = json.dumps(data, ensure_ascii=False)
+        session.add(row)
+        session.commit()
+
+
+CONFIDENCE_BANDS = {"empty_below": 0.50, "review_below": 0.80, "agree_bonus": 0.15, "disagree_cap": 0.60,
+                    "misread_cap": 0.60, "doubt_cap": 0.70, "unverified_cap": 0.79}
+
+
+def migrate_confidence_bands() -> None:
+    """Stored pipeline from before the confidence bands: under 50% empty, 50-80% review, from 80% approved.
+
+    Applied once (marked in `_migrations`). The old thresholds go; the old name threshold moves to the identity
+    settings (where it is still used), and every value is read a second time.
+    """
+    import json
+    from app.models import ConfigEntry
+
+    mark = "bands_50_80"
+    with Session(get_engine()) as session:
+        row = session.get(ConfigEntry, "pipeline")
+        if row is None:
+            return
+        data = json.loads(row.data or "{}")
+        done = data.setdefault("_migrations", [])
+        if mark in done:
+            return
+        old = data.get("confidence") or {}
+        identity = data.setdefault("identity", {"id_min_confidence": 0.70, "name_match": 75})
+        identity.setdefault("name_min_confidence", float(old.get("threshold", 0.65)))
+        data["confidence"] = dict(CONFIDENCE_BANDS)
+        data.setdefault("double_check", {"enabled": True}).setdefault("scope", "all")
+        data.setdefault("extract", {}).setdefault("verifier", None)
+        done.append(mark)
+        row.data = json.dumps(data, ensure_ascii=False)
+        session.add(row)
+        session.commit()
+
+
 def migrate_config() -> None:
     """Stored export layouts from before full_name: first_name/last_name columns become one full_name column."""
     import json
@@ -189,6 +281,18 @@ def backfill_blobs() -> None:
                 fm.image_data = Path(fm.image_path).read_bytes()
                 session.add(fm)
         session.commit()
+
+
+def encrypt_legacy_blobs() -> None:
+    """Scans stored in plain text by earlier versions are encrypted once (rows already starting with the magic are skipped)."""
+    from app.crypto import MAGIC, encrypt_bytes
+
+    with get_engine().begin() as conn:
+        for table, col in (("sourcefile", "content"), ("form", "image_data")):
+            rows = conn.exec_driver_sql(f"SELECT id, {col} FROM {table} WHERE {col} IS NOT NULL").all()
+            for row_id, blob in rows:
+                if not bytes(blob).startswith(MAGIC):
+                    conn.exec_driver_sql(f"UPDATE {table} SET {col} = ? WHERE id = ?", (encrypt_bytes(bytes(blob)), row_id))
 
 
 DEMO_USERS = [

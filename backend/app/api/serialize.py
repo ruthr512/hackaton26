@@ -122,6 +122,7 @@ def batch_detail(s: Session, batch: Batch) -> Dict[str, Any]:
                 "region_index": fm.region_index,
                 "started_at": fm.started_at.isoformat() if fm.started_at else None,
                 "refining": bool(fm.refining),
+                "image_rev": fm.image_rev or 0,
                 "patient_id": fm.patient_id,
                 "patient_link": fm.patient_link,
                 "doc_meta": load_value(fm.doc_meta),

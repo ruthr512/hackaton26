@@ -4,10 +4,10 @@ import { hasKey, type Translate } from "@/i18n";
 export const fieldLabel = (t: Translate, name: FieldName) => t(`field.${name}`);
 
 /** Label for a review reason code; unknown codes are shown as-is. `rule:<id>` names the lab's rule. */
-export function reasonLabel(t: Translate, code: string, ruleNames?: Record<string, string>): string {
+export function reasonLabel(t: Translate, code: string, ruleNames?: Record<string, string>, detail?: string): string {
   if (code.startsWith("rule:")) return t("reason.rule", { name: ruleNames?.[code] ?? code.slice(5) });
   const key = `reason.${code}`;
-  return hasKey(key) ? t(key) : code;
+  return hasKey(key) ? t(key, detail ? { name: detail } : undefined) : code;
 }
 
 /** Why a file or form failed, in the UI language; falls back to the server's own text for unknown codes. */
