@@ -7,11 +7,14 @@ today's behaviour; its traits below are exactly what the stages did before reade
 from typing import Any, Dict, Protocol
 
 from app.fields import FIELD_NAMES
+from app.logging_utils import get_logger
 from pipeline.base import Context, FieldResult
 from pipeline.learning import lessons_of
 from pipeline.normalizers import values_equal
 from pipeline.stages.extract import CALIBRATION, PROMPT, SENDER_LIST_PROMPT, SYSTEM, build_tool, encode_page, parse_field
 from validators.senders import canonical_names
+
+log = get_logger("readers")
 
 DOUBLE_CHECK_PROMPT = (
     "Look again, very carefully, only at these fields of the commitment form: {fields}. "
@@ -116,6 +119,52 @@ class CrossCheckReader:
         return self.checker.same(name, a, b)
 
 
+class QuotaFallbackReader:
+    """Gemini reads; when its quota for the day is used up, Claude takes over until it is back.
+
+    Without this every page of every upload fails for hours once the free / daily quota is gone. The flags the
+    stages look at (boxes, confidence, second read) always describe whoever is reading right now.
+    """
+
+    def __init__(self, primary: Any, fallback: FieldReader):
+        self.primary, self.fallback = primary, fallback
+        self._announced = False
+
+    def _current(self) -> FieldReader:
+        return self.fallback if self.primary.client.quota_exhausted() else self.primary
+
+    def __getattr__(self, name: str) -> Any:  # tighten_boxes, recheck_all, crop_margin, box_pad, ...
+        if name.startswith("_") or name in ("primary", "fallback"):
+            raise AttributeError(name)
+        return getattr(self._current(), name)
+
+    def _announce(self) -> None:
+        if not self._announced:
+            self._announced = True
+            log.warning("Gemini quota used up: reading with Claude until it resets")
+
+    async def read_page(self, ctx: Context, image_path: str) -> Dict[str, FieldResult]:
+        from pipeline.gemini import GeminiQuotaExhausted
+
+        try:
+            return await self.primary.read_page(ctx, image_path)
+        except GeminiQuotaExhausted:
+            self._announce()
+            return await self.fallback.read_page(ctx, image_path)
+
+    async def read_crop(self, ctx: Context, image_b64: str, media_type: str, name: str) -> FieldResult:
+        from pipeline.gemini import GeminiQuotaExhausted
+
+        try:
+            return await self.primary.read_crop(ctx, image_b64, media_type, name)
+        except GeminiQuotaExhausted:
+            self._announce()
+            return await self.fallback.read_crop(ctx, image_b64, media_type, name)
+
+    def same(self, name: str, a: Any, b: Any) -> bool:
+        return self._current().same(name, a, b)
+
+
 def _make_reader(provider: str, settings: Any, extract_cfg: Dict[str, Any], key: str) -> FieldReader:
     if provider == "claude":
         return _CLAUDE
@@ -134,7 +183,9 @@ def _make_reader(provider: str, settings: Any, extract_cfg: Dict[str, Any], key:
             base_delay=extract_cfg.get("base_delay_seconds", 1.0),
             adaptive=bool(extract_cfg.get("adaptive", False)),
         )
-        return GeminiReader(client)
+        reader = GeminiReader(client)
+        # Claude is the other provider: it takes over when Gemini's daily quota runs out (needs its own key)
+        return QuotaFallbackReader(reader, _CLAUDE) if getattr(settings, "anthropic_api_key", "") else reader
     raise ProviderConfigError(f"unknown extract.{key}: {provider!r} (claude or gemini)")
 
 

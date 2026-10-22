@@ -338,3 +338,80 @@ def test_the_page_boxes_are_kept_without_a_separate_localize_read(tmp_path):
     form = FormDoc(batch_id=0, source_file_id=0, image_path=page_file(tmp_path), fields=read_fields())
     out = asyncio.run(Localize().run(form, ctx)).fields["full_name"]
     assert client.tags == [] and out.box == [0.2, 0.1, 0.4, 0.12] and out.box_verified is False
+
+
+# ---------- quota used up (429 that waiting does not cure) ----------
+
+DAILY_QUOTA = json.dumps({"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
+    {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [{
+        "quotaMetric": "generativelanguage.googleapis.com/generate_requests_per_model_per_day",
+        "quotaId": "GenerateRequestsPerDayPerProjectPerModel"}]},
+    {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "61250s"}]}}).encode()
+PER_MINUTE = json.dumps({"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
+    {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [{
+        "quotaMetric": "generativelanguage.googleapis.com/generate_requests_per_model_per_minute",
+        "quotaId": "GenerateRequestsPerMinutePerProjectPerModel"}]},
+    {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "12s"}]}}).encode()
+
+
+def test_a_used_up_daily_quota_is_not_retried_and_later_calls_do_not_even_ask():
+    from pipeline.gemini import GeminiQuotaExhausted
+
+    client, send = client_with((429, {}, DAILY_QUOTA), ok({"a": 1}), max_retries=4)
+    with pytest.raises(GeminiQuotaExhausted) as e:
+        generate(client)
+    assert len(send.calls) == 1 and e.value.retry_in == 61250 and isinstance(e.value, ApiUnavailable)
+    assert client.quota_exhausted()
+    with pytest.raises(GeminiQuotaExhausted):
+        generate(client)
+    assert len(send.calls) == 1  # refused locally, nothing sent
+
+
+def test_a_per_minute_429_is_still_just_waited_out():
+    client, send = client_with((429, {}, PER_MINUTE), ok({"a": 1}))
+    assert generate(client) == {"a": 1} and len(send.calls) == 2
+    assert not client.quota_exhausted()
+
+
+class _Claude:
+    tighten_boxes, recheck_all, crop_margin, box_pad = True, False, 0.03, 0.0
+    reports_confidence = check_reports_confidence = True
+
+    def __init__(self):
+        self.pages = self.crops = 0
+
+    async def read_page(self, ctx, image_path):
+        self.pages += 1
+        return {"full_name": FieldResult(value="from claude")}
+
+    async def read_crop(self, ctx, image_b64, media_type, name):
+        self.crops += 1
+        return FieldResult(value="from claude")
+
+    def same(self, name, a, b):
+        return a == b
+
+
+def test_claude_takes_over_when_gemini_quota_runs_out_and_the_flags_follow(tmp_path):
+    from pipeline.readers import QuotaFallbackReader
+
+    img = tmp_path / "p.png"
+    Image.new("RGB", (40, 40), "white").save(img)
+    gem = GeminiReader(GeminiClient(api_key="k", model="m", send=Sender((429, {}, DAILY_QUOTA)), max_retries=0, base_delay=0))
+    claude = _Claude()
+    reader = QuotaFallbackReader(gem, claude)
+    assert reader.tighten_boxes is False and reader.box_pad == 0.10  # Gemini's flags while it is serving
+    got = asyncio.run(reader.read_page(Context(settings=None, pipeline_cfg={}, senders_cfg={}, client=None), str(img)))
+    assert got["full_name"].value == "from claude" and claude.pages == 1
+    assert reader.tighten_boxes is True and reader.box_pad == 0.0  # and Claude's once it has taken over
+    asyncio.run(reader.read_crop(None, "b64", "image/jpeg", "full_name"))
+    assert claude.crops == 1  # later calls go straight to Claude, without asking Gemini again
+
+
+def test_the_fallback_exists_only_when_there_is_a_claude_key():
+    from pipeline.readers import QuotaFallbackReader
+
+    assert isinstance(build_reader(settings(gemini_api_key="k", gemini_model="m", anthropic_api_key="c"),
+                                   {"provider": "gemini"}), QuotaFallbackReader)
+    assert isinstance(build_reader(settings(gemini_api_key="k", gemini_model="m"), {"provider": "gemini"}),
+                      GeminiReader)

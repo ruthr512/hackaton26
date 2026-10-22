@@ -63,19 +63,19 @@
   --spacing-margin: 2rem;
   --spacing-space-sm: 0.5rem;
 
-  --font-headline-lg-mobile: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-headline-lg: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-label-md: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-headline-md: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-body-sm: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-body-lg: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-data-mono-lg: "JetBrains Mono";
-  --font-data-mono-sm: "JetBrains Mono";
-  --font-label-sm: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-display-lg-mobile: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-headline-sm: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-body-md: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
-  --font-display-lg: "Heebo", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-headline-lg-mobile: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-headline-lg: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-label-md: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-headline-md: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-body-sm: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-body-lg: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-data-mono-lg: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-data-mono-sm: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-label-sm: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-display-lg-mobile: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-headline-sm: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-body-md: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-display-lg: "Assistant", "Noto Sans Arabic", "Noto Sans", sans-serif;
 
   --text-headline-lg-mobile: 22px;
   --text-headline-lg-mobile--line-height: 30px;

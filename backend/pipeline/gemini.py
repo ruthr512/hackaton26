@@ -28,6 +28,8 @@ log = get_logger("gemini")
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 SCRIPTS = ["handwritten", "printed"]
 RETRY_STATUS = (429, 500, 502, 503, 504)
+QUOTA_BACKOFF = 3600.0  # when the API does not say when a used-up quota resets: look again in an hour
+LONG_WAIT = 120.0  # a 429 that asks for longer than this is a quota, not a burst of requests
 
 
 class GeminiError(RuntimeError):
@@ -42,6 +44,15 @@ class InvalidModelResponse(GeminiError):
 class GeminiRequestRejected(GeminiError):
     """The API rejected the request itself (bad schema, unknown model...): retrying cannot help."""
     code = "gemini_request_rejected"
+
+
+class GeminiQuotaExhausted(ApiUnavailable):
+    """The key's quota for the day (or the month) is used up: every call fails until it resets, so retrying is
+    pointless. Carries how long until it does, when the API says."""
+
+    def __init__(self, retry_in: Optional[float] = None):
+        super().__init__("quota")
+        self.retry_in = retry_in
 
 
 class _Transient(GeminiError):
@@ -75,6 +86,30 @@ def urllib_sender(ssl_cert_file: str = "") -> Send:
     return send
 
 
+def _daily_quota(raw: bytes) -> Optional[float]:
+    """Seconds until the quota resets (0 when unknown) if this 429 says a per-day / per-month quota is used up,
+    None for an ordinary per-minute rate limit (which waiting a little does cure)."""
+    try:
+        error = json.loads(raw).get("error") or {}
+    except (ValueError, AttributeError):
+        return None
+    wait = 0.0
+    violated = False
+    for detail in error.get("details") or []:
+        if not isinstance(detail, dict):
+            continue
+        for v in detail.get("violations") or []:
+            metric = f"{v.get('quotaMetric', '')} {v.get('quotaId', '')}".lower()
+            violated = violated or "perday" in metric.replace("_", "").replace("-", "") or "permonth" in metric.replace("_", "")
+        delay = str(detail.get("retryDelay") or "")
+        if delay.endswith("s"):
+            try:
+                wait = max(wait, float(delay[:-1]))
+            except ValueError:
+                pass
+    return wait if violated or wait > LONG_WAIT else None
+
+
 def _retry_after(headers: Dict[str, str]) -> Optional[float]:
     for key, value in headers.items():
         if key.lower() == "retry-after":
@@ -98,6 +133,11 @@ class GeminiClient:
         # the key travels in a header, never in the URL (URLs end up in proxy logs)
         self._headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
         self._send = send or urllib_sender(ssl_cert_file)
+        self._exhausted_until = 0.0
+
+    def quota_exhausted(self) -> bool:
+        """The API already said the quota is used up, and the time it gave has not passed."""
+        return time.monotonic() < self._exhausted_until
 
     async def generate(self, image_b64: str, media_type: str, prompt: str, schema: Dict[str, Any],
                        system: Optional[str] = None, check: Optional[Callable[[Dict[str, Any]], None]] = None,
@@ -113,6 +153,8 @@ class GeminiClient:
         if system:
             payload["systemInstruction"] = {"parts": [{"text": system}]}
         body = json.dumps(payload).encode("utf-8")
+        if self.quota_exhausted():  # no point asking: it would be refused, and every refusal is a wasted wait
+            raise GeminiQuotaExhausted(self._exhausted_until - time.monotonic())
 
         attempt = 0
         while True:
@@ -124,7 +166,12 @@ class GeminiClient:
                                                                    self.timeout)
                 finally:
                     await self.limiter.release()
-                out = self._interpret(status, headers, raw)
+                try:
+                    out = self._interpret(status, headers, raw)
+                except GeminiQuotaExhausted as e:
+                    self._exhausted_until = time.monotonic() + (e.retry_in or QUOTA_BACKOFF)
+                    log_event(log, "gemini_quota_exhausted", tag=tag, retry_in=int(e.retry_in or 0))
+                    raise
                 if check is not None:
                     try:
                         check(out)
@@ -156,6 +203,10 @@ class GeminiClient:
         if status in (401, 403):
             log_event(log, "gemini_unavailable", status=status)
             raise ApiUnavailable("auth")
+        if status == 429:
+            quota = _daily_quota(raw)
+            if quota is not None:
+                raise GeminiQuotaExhausted(quota)
         if status in RETRY_STATUS:
             raise _Transient(status, _retry_after(headers))
         if status != 200:
